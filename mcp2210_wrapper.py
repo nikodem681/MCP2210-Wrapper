@@ -1,4 +1,5 @@
 import ctypes
+import constants
 
 #Used constants
 
@@ -7,52 +8,6 @@ class MCP2210:
         """
         Инициализация и загрузка DLL.
         """
-        self.GPIO = 0
-        self.CHIP_SELECT = 1
-        self.ALT_FUNCTION = 2
-
-        self.REMOTE_WAKEUP_DISABLED = 0
-        self.REMOTE_WAKEUP_ENABLED = 1
-
-        self.SPI_BUS_RELEASE_DISABLED = 0
-        self.SPI_BUS_RELEASE_ENABLED = 1
-
-        self.INT_MD_CNT_NONE = 0
-        self.INT_MD_CNT_RISING_EDGES = 1
-        self.INT_MD_CNT_FALLING_EDGES = 2
-        self.INT_MD_CNT_ANY_EDGE = 3
-
-        self.MCP2210_VM_CONFIG = 0  # Volatile Memory
-        self.MCP2210_NVRAM_CONFIG = 1  # Non-Volatile Memory (NVRAM)
-
-        self.MCP2210_PIN_DES_GPIO = 0
-        self.MCP2210_PIN_DES_CS = 1
-        self.MCP2210_PIN_DES_FN = 2
-
-        self.MCP2210_REMOTE_WAKEUP_ENABLED = 1
-        self.MCP2210_REMOTE_WAKEUP_DISABLED = 0
-
-        self.MCP2210_INT_MD_CNT_HIGH_PULSES = 0
-        self.MCP2210_INT_MD_CNT_LOW_PULSES = 1
-        self.MCP2210_INT_MD_CNT_RISING_EDGES = 2
-        self.MCP2210_INT_MD_CNT_FALLING_EDGES = 3
-        self.MCP2210_INT_MD_CNT_NONE = 4
-
-        self.MCP2210_SPI_BUS_RELEASE_ENABLED = 1
-        self.MCP2210_SPI_BUS_RELEASE_DISABLED = 0
-
-        self.E_SUCCESS = 0
-        self.E_ERR_NULL = -1
-        self.E_ERR_INVALID_HANDLE_VALUE = -2
-        self.E_ERR_UNKNOWN_ERROR = -3
-        self.E_ERR_INVALID_PARAMETER = -4
-        self.E_ERR_HID_TIMEOUT = -5
-        self.E_ERR_HID_RW_FILEIO = -6
-        self.E_ERR_BLOCKED_ACCESS = -7
-        self.E_ERR_CMD_ECHO = -8
-        self.E_ERR_CMD_FAILED = -9
-
-
         self.dll = ctypes.WinDLL(dll_path)
         version = self.get_library_version()
         print("Версия dll: " + str(version))
@@ -473,7 +428,7 @@ class MCP2210:
         }
         # Преобразование в читаемый формат
 
-    def SetGpioConfig(self, handle, cfgSelector, pGpioPinDes, dfltGpioOutput, dfltGpioDir, rmtWkupEn, intPinMd,
+    def Set_Gpio_Config(self, handle, cfgSelector, pGpioPinDes, dfltGpioOutput, dfltGpioDir, rmtWkupEn, intPinMd,
                               spiBusRelEn):
         """
         Set the current GPIO configuration or the power-up default (NVRAM) GPIO configuration.
@@ -491,34 +446,6 @@ class MCP2210:
         Returns:
         int: 0 for success or a negative error code.
         """
-        if handle is None:
-            return self.E_ERR_NULL
-
-        if not isinstance(cfgSelector, int) or cfgSelector not in [self.MCP2210_VM_CONFIG, self.MCP2210_NVRAM_CONFIG]:
-            return self.E_ERR_INVALID_PARAMETER
-
-        if pGpioPinDes is None or len(pGpioPinDes) != 9:
-            return self.E_ERR_INVALID_PARAMETER
-
-        for pin in pGpioPinDes:
-            if pin not in [self.MCP2210_PIN_DES_GPIO, self.MCP2210_PIN_DES_CS, self.MCP2210_PIN_DES_FN]:
-                return self.E_ERR_INVALID_PARAMETER
-
-        if rmtWkupEn not in [self.MCP2210_REMOTE_WAKEUP_ENABLED, self.MCP2210_REMOTE_WAKEUP_DISABLED]:
-            return self.E_ERR_INVALID_PARAMETER
-
-        if intPinMd not in [
-            self.MCP2210_INT_MD_CNT_HIGH_PULSES,
-            self.MCP2210_INT_MD_CNT_LOW_PULSES,
-            self.MCP2210_INT_MD_CNT_RISING_EDGES,
-            self.MCP2210_INT_MD_CNT_FALLING_EDGES,
-            self.MCP2210_INT_MD_CNT_NONE,
-        ]:
-            return self.E_ERR_INVALID_PARAMETER
-
-        if spiBusRelEn not in [self.MCP2210_SPI_BUS_RELEASE_ENABLED, self.MCP2210_SPI_BUS_RELEASE_DISABLED]:
-            return self.E_ERR_INVALID_PARAMETER
-
         # Prepare ctypes arguments
         c_handle = ctypes.c_void_p(handle)
         c_cfgSelector = ctypes.c_ubyte(cfgSelector)
@@ -545,6 +472,7 @@ class MCP2210:
         except Exception as e:
             print(f"Error calling DLL function: {e}")
             return self.E_ERR_UNKNOWN_ERROR
+        
     def reset_device(self, handle):
         """
         Сброс устройства MCP2210.
@@ -640,6 +568,7 @@ class MCP2210:
 
         ################################################################################################################
         #Временные настройки начались
+   
     def get_gpio_config(self, handle, cfgSelector):
         """
         Retrieves the GPIO configuration of the MCP2210 device.
