@@ -10,7 +10,6 @@ mcp = MCP2210(dll_path)
 
 try:
     handle = mcp.open_device_by_index(0x4D8, 0xDE, 0)
-    # Установка направления GPIO пинов (0 - вход, 1 - выход)
 
     cfg_selector = constants.cfgSelector.MCP2210_NVRAM_CONFIG  # Селектор конфигурации
     gpio_config = mcp.get_gpio_config(handle, cfg_selector)
@@ -28,10 +27,10 @@ try:
     ]
 
     # Default GPIO output values (example: all high)
-    default_output = 0xFFFF
+    default_output = 0xFF
 
     # Default GPIO direction (example: all outputs)
-    default_direction = 0x0000
+    default_direction = 0x00
 
     # Remote wakeup enabled
     remote_wakeup = constants.rmtWkupEn.MCP2210_REMOTE_WAKEUP_DISABLED
