@@ -348,32 +348,6 @@ class MCP2210:
         if result != 0:
             raise ValueError(f"Error setting GPIO pin direction: {result}")
 
-    def get_gpio_pin_val(self, handle):
-        """
-        Retrieves the current GPIO values of the MCP2210 device.
-
-        Args:
-            handle (int): A handle to the MCP2210 device.
-
-        Returns:
-            int: Current GPIO pin values.
-
-        Raises:
-            ValueError: If the DLL function call fails (non-zero return value).
-        """
-        gpio_pin_val = ctypes.c_uint()
-
-        # Call the DLL function
-        result = self.dll.Mcp2210_GetGpioPinVal(
-            ctypes.c_void_p(handle),
-            ctypes.byref(gpio_pin_val)
-        )
-
-        if result != 0:
-            raise ValueError(f"Error getting GPIO pin values: {result}")
-
-        return gpio_pin_val.value
-
     def get_gpio_config(self, handle, cfgSelector):
         """
         Retrieves the GPIO configuration of the MCP2210 device.
@@ -446,6 +420,9 @@ class MCP2210:
         Returns:
         int: 0 for success or a negative error code.
         """
+        dfltGpioOutput = self.dictionary_to_binary_number(dfltGpioOutput)
+        dfltGpioDir = self.dictionary_to_binary_number(dfltGpioDir)
+
         # Prepare ctypes arguments
         c_handle = ctypes.c_void_p(handle)
         c_cfgSelector = ctypes.c_ubyte(cfgSelector)
@@ -622,29 +599,6 @@ class MCP2210:
             "spi_bus_rel_en": spi_bus_rel_en.value
         }
 
-    def set_gpio_pin_dir(self, handle, gpioSetDir):
-        """
-        Sets the GPIO pin direction of the MCP2210 device.
-
-        Args:
-            handle (int): A handle to the MCP2210 device.
-            gpioSetDir (int): New GPIO pin direction configuration.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the DLL function call fails (non-zero return value).
-        """
-        # Call the DLL function
-        result = self.dll.Mcp2210_SetGpioPinDir(
-            ctypes.c_void_p(handle),
-            ctypes.c_uint(gpioSetDir)
-        )
-
-        if result != 0:
-            raise ValueError(f"Error setting GPIO pin direction: {result}")
-
     def get_gpio_pin_val(self, handle):
         """
         Retrieves the current GPIO values of the MCP2210 device.
@@ -694,48 +648,121 @@ class MCP2210:
         if result != 0:
             raise ValueError(f"Error setting GPIO pin values: {result}")
 
-    def toggle_gpio(self, handle):
+    def get_spi_config(self, handle, cfgSelector):
         """
-        Example function to toggle GPIO pins.
+        Получение настроек SPI для текущей (VM) конфигурации или конфигурации по умолчанию (NVRAM).
 
         Args:
-            handle (int): A handle to the MCP2210 device.
+            handle (ctypes.c_void_p): Дескриптор устройства.
+            cfgSelector (int): Выбор текущей или начальной конфигурации.
+                            Возможные значения:
+                            - MCP2210_VM_CONFIG (текущая конфигурация)
+                            - MCP2210_NVRAM_CONFIG (начальная конфигурация)
 
         Returns:
-            None
+            dict: Словарь, содержащий настройки SPI:
+                - baudRate: Скорость передачи.
+                - idleCsVal: Значение Chip Select в состоянии ожидания.
+                - activeCsVal: Значение Chip Select в активном состоянии.
+                - csToDataDly: Задержка от Chip Select до передачи данных.
+                - dataToCsDly: Задержка от последнего байта до Chip Select.
+                - dataToDataDly: Задержка между байтами.
+                - txferSize: Размер передачи в байтах.
+                - spiMd: Режим SPI.
+        Raises:
+            ValueError: Если вызов функции DLL завершился с ошибкой.
         """
-        # Get current GPIO configuration
-        gpio_config = self.get_gpio_config(handle, 0)  # 0 for volatile memory
+        # Подготовка выходных переменных
+        baudRate = ctypes.c_uint()
+        idleCsVal = ctypes.c_uint()
+        activeCsVal = ctypes.c_uint()
+        csToDataDly = ctypes.c_uint()
+        dataToCsDly = ctypes.c_uint()
+        dataToDataDly = ctypes.c_uint()
+        txferSize = ctypes.c_uint()
+        spiMd = ctypes.c_ubyte()
 
-        # Modify GP0 pin to be GPIO and output
-        gpio_pin_des = gpio_config["gpio_pin_des"]
-        gpio_pin_des[0] = self.MCP2210_PIN_DES_GPIO  # Set GP0 as GPIO
-
-        dflt_gpio_dir = gpio_config["dflt_gpio_dir"] & (~0x1)  # Clear bit 0 (set as output)
-        dflt_gpio_output = gpio_config["dflt_gpio_output"] & (~0x1)  # Clear bit 0 (logic low)
-
-        # Apply the new configuration
-        result = self.dll.Mcp2210_SetGpioConfig(
+        # Вызов функции DLL
+        result = self.dll.Mcp2210_GetSpiConfig(
             ctypes.c_void_p(handle),
-            ctypes.c_ubyte(0),  # 0 for volatile memory
-            (ctypes.c_ubyte * 9)(*gpio_pin_des),
-            ctypes.c_uint(dflt_gpio_output),
-            ctypes.c_uint(dflt_gpio_dir),
-            ctypes.c_ubyte(gpio_config["rmt_wkup_en"]),
-            ctypes.c_ubyte(gpio_config["int_pin_md"]),
-            ctypes.c_ubyte(gpio_config["spi_bus_rel_en"]),
+            ctypes.c_ubyte(cfgSelector),
+            ctypes.byref(baudRate),
+            ctypes.byref(idleCsVal),
+            ctypes.byref(activeCsVal),
+            ctypes.byref(csToDataDly),
+            ctypes.byref(dataToCsDly),
+            ctypes.byref(dataToDataDly),
+            ctypes.byref(txferSize),
+            ctypes.byref(spiMd)
         )
 
+        # Проверка результата
         if result != 0:
-            raise ValueError(f"Error setting GPIO configuration: {result}")
+            raise ValueError(f"Ошибка при получении конфигурации SPI. Код ошибки: {result}")
 
-        # Toggle GP0 (high-low)
-        dflt_gpio_output = dflt_gpio_output | 0x1  # Set GP0 to high
-        self.set_gpio_pin_val(handle, dflt_gpio_output)
+        # Возврат данных в виде словаря
+        return {
+            "baudRate": baudRate.value,
+            "idleCsVal": idleCsVal.value,
+            "activeCsVal": activeCsVal.value,
+            "csToDataDly": csToDataDly.value,
+            "dataToCsDly": dataToCsDly.value,
+            "dataToDataDly": dataToDataDly.value,
+            "txferSize": txferSize.value,
+            "spiMd": spiMd.value
+        }
 
-        # Add delay here if needed
-        import time
-        time.sleep(0.1)
+    def xfer_spi_data(self, handle, data_tx, baud_rate, transfer_size, cs_mask):
+        """
+        Обертка для вызова функции Mcp2210_xferSpiData.
 
-        dflt_gpio_output = dflt_gpio_output & (~0x1)  # Set GP0 to low
-        self.set_gpio_pin_val(handle, dflt_gpio_output)
+        Args:
+            handle (ctypes.c_void_p): Дескриптор устройства MCP2210.
+            data_tx (list[int]): Данные для передачи через SPI.
+            baud_rate (int): Скорость передачи SPI (в Гц). Если 0, используется текущая скорость.
+            transfer_size (int): Количество байт на передачу. Если 0, передача не выполняется, только изменение конфигурации.
+            cs_mask (int): Битовая маска GPIO пинов для Chip Select.
+
+        Returns:
+            dict: Результаты SPI передачи:
+                - "data_rx" (list[int]): Принятые данные.
+                - "baud_rate" (int): Принятая скорость передачи SPI.
+                - "transfer_size" (int): Фактический размер передачи.
+
+        Raises:
+            ValueError: Если вызов функции DLL завершился с ошибкой.
+        """
+        # Подготовка данных для передачи
+        data_tx_buffer = (ctypes.c_ubyte * len(data_tx))(*data_tx)
+        data_rx_buffer = (ctypes.c_ubyte * len(data_tx))()  # Буфер для приёма данных того же размера
+        c_baud_rate = ctypes.c_uint(baud_rate)
+        c_transfer_size = ctypes.c_uint(transfer_size)
+
+        # Вызов функции DLL
+        result = self.dll.Mcp2210_xferSpiData(
+            ctypes.c_void_p(handle),
+            data_tx_buffer,
+            data_rx_buffer,
+            ctypes.byref(c_baud_rate),
+            ctypes.byref(c_transfer_size),
+            ctypes.c_uint(cs_mask)
+        )
+
+        # Проверка результата
+        if result != 0:
+            raise ValueError(f"Ошибка SPI передачи. Код ошибки: {result}")
+
+        # Преобразование данных из буфера приёма в список
+        data_rx = list(data_rx_buffer)
+
+        # Возврат результатов
+        return {
+            "data_rx": data_rx,
+            "baud_rate": c_baud_rate.value,
+            "transfer_size": c_transfer_size.value
+        }
+
+    def dictionary_to_binary_number(self, gpio_dict):
+        sorted_keys = sorted(gpio_dict.keys(), key=lambda x: int(x[4:]), reverse=True)
+        binary_string = ''.join(str(gpio_dict[key]) for key in sorted_keys)
+        return int(binary_string, 2)
