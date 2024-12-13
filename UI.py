@@ -33,10 +33,20 @@ def toggle_button_color(button):
     button.config(bg=new_color)
 
 def on_button_click(button, text):
-    """
-    Функция вызывается при нажатии кнопки.
-    Меняет цвет кнопки и показывает pop-up с текстом кнопки.
-    """
+    if "mech_sw" in text:
+        messagebox.showinfo("Action", f"Executing action for {text}")
+    elif "sw" in text:
+        messagebox.showinfo("Action", f"Switch action for {text}")
+        # Добавьте вашу функцию для sw кнопок здесь
+    elif "ttl" in text:
+        messagebox.showinfo("Action", f"TTL action for {text}")
+        # Добавьте вашу функцию для ttl кнопок здесь
+    elif "IQ-ATT" in text:
+        messagebox.showinfo("Action", f"Adjusting IQ ATT for {text}")
+        # Добавьте вашу функцию для IQ-ATT кнопок здесь
+    elif "S-param_SW" in text:
+        messagebox.showinfo("Action", "Executing S-parameter action")
+        # Добавьте вашу функцию для S-param_SW здесь
     toggle_button_color(button)
     messagebox.showinfo("Button Clicked", f"You clicked: {text}")
 

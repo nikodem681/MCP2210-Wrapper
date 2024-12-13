@@ -130,4 +130,25 @@ class Switchboard_18GHz:
 
     def CloseDevice(self):
         self.mcp.close_device(self.handle)
+
+    def MCP23S17_Send_SPI_command(device_address, rw_mode, register, data_to_send):
+
+        if rw_mode not in ('r', 'w'):
+            raise ValueError(f"Invalid rw_mode: {rw_mode}. Must be 'r' or 'w'.")
+
+        # Проверка device_address
+        if device_address not in range(6):
+            raise ValueError(f"Invalid device_address: {device_address}. Must be 0-5.")
+
+        # Проверка register
+        if register not in (0x0A, 0x1A):
+            raise ValueError(f"Invalid register: {register}. Must be 0x0A or 0x1A.")
+
+        # Проверка data
+        if not (0x00 <= data <= 0xFF):
+            raise ValueError(f"Invalid data: {data}. Must be between 0x00 and 0xFF.")
+
+        base = 0b01000000            
+        control_byte = base | (device_address << 1) | rw_mode # Сдвиг MUX_address на 1 бит влево и объединение с базовым значением
+
         
