@@ -4,10 +4,11 @@ import constants
 #Used constants
 
 class MCP2210:
-    def __init__(self, dll_path):
+    def __init__(self):
         """
         Инициализация и загрузка DLL.
         """
+        dll_path = "MCP2210/mcp2210_dll_um_x64.dll"
         self.dll = ctypes.WinDLL(dll_path)
         version = self.get_library_version()
         print("Версия dll: " + str(version))
@@ -17,6 +18,14 @@ class MCP2210:
         """
         Настройка функций DLL.
         """
+        self.dll.Mcp2210_SetGpioPinVal.argtypes = [
+            ctypes.c_void_p,        # Указатель на handle устройства
+            ctypes.c_uint,          # Значение GPIO
+            ctypes.POINTER(ctypes.c_uint)  # Указатель для возвращаемого значения GPIO
+        ]
+        self.dll.Mcp2210_SetGpioPinVal.restype = ctypes.c_int  # Код результата
+
+
         # Настройка Mcp2210_GetConnectedDevCount
         self.dll.Mcp2210_GetConnectedDevCount.argtypes = [ctypes.c_ushort, ctypes.c_ushort]
         self.dll.Mcp2210_GetConnectedDevCount.restype = ctypes.c_int
@@ -99,10 +108,6 @@ class MCP2210:
         ]
         self.dll.Mcp2210_GetGpioConfig.restype = ctypes.c_int  # Return type is int
 
-        # Настройка Mcp2210_SetGpioPinVal
-        self.dll.Mcp2210_SetGpioPinVal.argtypes = [ctypes.c_void_p, ctypes.c_uint]
-        self.dll.Mcp2210_SetGpioPinVal.restype = ctypes.c_int
-
         ################################################################################################################
         #Временные настройки начались
         # Set up the function signature
@@ -142,12 +147,6 @@ class MCP2210:
         ]
         self.dll.Mcp2210_SetGpioConfig.restype = ctypes.c_int
 
-        self.dll.Mcp2210_SetGpioPinVal.argtypes = [
-            ctypes.c_void_p,                        # void* handle
-            ctypes.c_uint                           # unsigned int gpioSetVal
-        ]
-        self.dll.Mcp2210_SetGpioPinVal.restype = ctypes.c_int
-
         ################################################################################################################
         #Временные настройки закончились
 
@@ -161,7 +160,7 @@ class MCP2210:
             raise RuntimeError(f"Ошибка при получении версии DLL. Код ошибки: {result}")
         return buffer.value
 
-    def get_connected_device_count(self, vid, pid):
+    def get_connected_device_count(self, vid=0x4D8, pid=0xDE):
         """
         Получает количество подключённых устройств MCP2210 по VID и PID.
 
@@ -185,7 +184,7 @@ class MCP2210:
 
         return device_count
 
-    def open_device_by_sn(self, vid, pid, serial_no):
+    def open_device_by_sn(self, serial_no, vid=0x4D8, pid=0xDE):
         """
         Открытие устройства MCP2210 по серийному номеру.
 
@@ -477,27 +476,43 @@ class MCP2210:
 
         print("Устройство успешно сброшено.")
 
-    def set_gpio_pin_val(self, handle, gpio_values):
+
+    def set_gpio_pin_val(self, handle, gpio_set_val):
         """
-        Sets the GPIO pin values of the MCP2210 device.
+        Обёртка для функции Mcp2210_SetGpioPinVal.
 
         Args:
-            handle (int): A handle to the MCP2210 device.
-            gpio_values (int): GPIO pin values to set.
+            handle (ctypes.c_void_p): Указатель на устройство.
+            gpio_set_val (int): Новые значения GPIO.
 
         Returns:
-            None
+            tuple: (result_code, gpio_pin_val), где:
+                - result_code (int): Код результата (0 - успех, отрицательные - ошибки).
+                - gpio_pin_val (int): Текущее значение GPIO, возвращаемое функцией.
 
         Raises:
-            ValueError: If the DLL function call fails (non-zero return value).
+            ValueError: Если handle равен None.
+            RuntimeError: Если результат вызова отрицательный (ошибка).
         """
-        result = self.dll.Mcp2210_SetGpioPinVal(
+        if handle is None or handle == ctypes.c_void_p(-1).value:
+            raise ValueError("Invalid handle provided")
+
+        # Буфер для возвращаемого значения GPIO pin values
+        gpio_pin_val = ctypes.c_uint()
+
+        # Вызов функции DLL
+        result_code = self.dll.Mcp2210_SetGpioPinVal(
             ctypes.c_void_p(handle),
-            ctypes.c_uint(gpio_values)
+            ctypes.c_uint(gpio_set_val),
+            ctypes.byref(gpio_pin_val)
         )
 
-        if result != 0:
-            raise ValueError(f"Error setting GPIO pin values: {result}")
+        # Обработка результата
+        if result_code < 0:
+            raise RuntimeError(f"Error in Mcp2210_SetGpioPinVal: code {result_code}")
+        
+        return result_code, gpio_pin_val.value
+        
 
     def describe_mcp2210_error(self, error_code):
         """
@@ -625,29 +640,6 @@ class MCP2210:
 
         return gpio_pin_val.value
 
-    def set_gpio_pin_val(self, handle, gpioSetVal):
-        """
-        Sets the GPIO pin values of the MCP2210 device.
-
-        Args:
-            handle (int): A handle to the MCP2210 device.
-            gpioSetVal (int): New GPIO pin values to set.
-
-        Returns:
-            None
-
-        Raises:
-            ValueError: If the DLL function call fails (non-zero return value).
-        """
-        # Call the DLL function
-        result = self.dll.Mcp2210_SetGpioPinVal(
-            ctypes.c_void_p(handle),
-            ctypes.c_uint(gpioSetVal)
-        )
-
-        if result != 0:
-            raise ValueError(f"Error setting GPIO pin values: {result}")
-
     def get_spi_config(self, handle, cfgSelector):
         """
         Получение настроек SPI для текущей (VM) конфигурации или конфигурации по умолчанию (NVRAM).
@@ -733,8 +725,8 @@ class MCP2210:
             ValueError: Если вызов функции DLL завершился с ошибкой.
         """
         # Подготовка данных для передачи
-        data_tx_buffer = (ctypes.c_ubyte * len(data_tx))(*data_tx)
-        data_rx_buffer = (ctypes.c_ubyte * len(data_tx))()  # Буфер для приёма данных того же размера
+        data_tx_buffer = (ctypes.c_ubyte * transfer_size)(*data_tx)
+        data_rx_buffer = (ctypes.c_ubyte * transfer_size)()  # Буфер для приёма данных того же размера
         c_baud_rate = ctypes.c_uint(baud_rate)
         c_transfer_size = ctypes.c_uint(transfer_size)
 
@@ -764,5 +756,17 @@ class MCP2210:
 
     def dictionary_to_binary_number(self, gpio_dict):
         sorted_keys = sorted(gpio_dict.keys(), key=lambda x: int(x[4:]), reverse=True)
-        binary_string = ''.join(str(gpio_dict[key]) for key in sorted_keys)
+        binary_string = ''.join(str(int(gpio_dict[key])) for key in sorted_keys)
         return int(binary_string, 2)
+    
+    def decode_temperature(self, result):
+        # Объединяем байты
+        raw_data = result['data_rx'] 
+        raw_data = (raw_data[0] << 8) | raw_data[1]
+        # Отбрасываем младшие 3 бита
+        temperature_raw = raw_data >> 3
+        # Проверяем знак
+        if temperature_raw & 0x1000:  # Если бит 12 установлен
+            temperature_raw -= 0x2000
+        # Преобразуем в температуру
+        return temperature_raw * 0.0625
