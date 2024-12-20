@@ -638,7 +638,7 @@ class MCP2210:
         if result != 0:
             raise ValueError(f"Error getting GPIO pin values: {result}")
 
-        return gpio_pin_val.value
+        return result, gpio_pin_val.value
 
     def get_spi_config(self, handle, cfgSelector):
         """

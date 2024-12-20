@@ -19,6 +19,8 @@ for i in range (0, quanity, 1):
     mcp.close_device(handle)
 print(Serial_no_list)
 
-swb = Switchboard_18GHz(Serial_no_list[0])
+swb = Switchboard_18GHz()
+swb.connect(Serial_no_list[0])
+
 swb.reset_PCB()
 print('The end')

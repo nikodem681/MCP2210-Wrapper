@@ -76,20 +76,25 @@ class Switchboard_18GHz:
 
         for i in range (0,5,1):
             self.init_MCP23S17(i)
+        
+        Mech_sw_1 = MechanicalSwitcher(swb = self, address = "MCPIO5Q0")
+        Mech_sw_2 = MechanicalSwitcher(swb = self, address = "MCPIO5Q1")
+        Mech_sw_3 = MechanicalSwitcher(swb = self, address = "MCPIO5Q2")
+        Mech_sw_4 = MechanicalSwitcher(swb = self, address = "MCPIO5Q3")
+        Mech_sw_5 = MechanicalSwitcher(swb = self, address = "MCPIO5Q4")
+
 
     def __del__(self):
-        a = 1
+        try:
+            self.CloseDevice()
+        except Exception:
+            pass
 
-#############################################################
-
-#############################################################
     def init_MCP23S17(self, MUX_address):
-        if MUX_address not in range (0, 5):
-            print('Mistake. MUX address suppose to be 0, 1, 2, 3, 4, 5 and that it is')
-            raise ValueError('Mistake. MUX address suppose to be 0, 1, 2, 3, 4, 5 and that it is')
-        transfer_size = 3
-        base = 0b01000000            
-        control_byte = base | (MUX_address << 1) # Сдвиг MUX_address на 1 бит влево и объединение с базовым значением
+        if MUX_address not in range(6):  # 0-5 включительно
+            raise ValueError("MUX address must be between 0 and 5.")
+        transfer_size = 3          
+        control_byte = 0b01000000 | (MUX_address << 1) # Сдвиг MUX_address на 1 бит влево и объединение с базовым значением
         iocon_address = 0x0A  # Адрес IOCON
         data = 0x80 
         data_tx = [control_byte, iocon_address, data]
@@ -108,47 +113,169 @@ class Switchboard_18GHz:
         self.SPI_send_command(data_tx_b, transfer_size, self.cs_mask)
         
     def set_MUX_channel(self, channel_N):
-        if channel_N not in [0,1,2,3,4,5,6,7]:
-            raise ValueError("Channel_N must be between 0 and 8")
-        current_val = self.mcp.get_gpio_pin_val(self.handle) & ~0b111
+        if channel_N not in range(8):
+            raise ValueError("Channel_N must be between 0 and 7")
+        result, current_val = self.mcp.get_gpio_pin_val(self.handle)
+        current_val = current_val & ~0b111
+        if result != 0:
+            raise RuntimeError("Failed to get GPIO pin value.")
         current_val = current_val | (channel_N & 0b111)
         result, gpio_pin_val = self.mcp.set_gpio_pin_val(self.handle, current_val)
         if (result == 0 ): 
-            print('set_MUX_channel: ' + str(channel_N) + 'current GPIO_val: ' + (bin(gpio_pin_val)))
-
-    def SPI_send_command (self, data_tx, transfer_size, cs_mask):
-        results = self.mcp.xfer_spi_data(self.handle, data_tx, self.default_baud_rate, transfer_size, cs_mask)
-        print ('Responce is: ' + str(results))
+            print('set_MUX_channel: ' + str(channel_N) + ', current GPIO_val: ' + (bin(gpio_pin_val)))
 
     def reset_PCB(self):
-        current_val = self.mcp.get_gpio_pin_val(self.handle)
-        current_val = current_val  | 0b000100000
-        result, gpio_pin_val = self.mcp.set_gpio_pin_val(self.handle, current_val)
-        current_val = current_val  & 0b111011111
-        result, gpio_pin_val = self.mcp.set_gpio_pin_val(self.handle, current_val)
+        RESET_MASK = 0b000100000
+        result, current_val = self.mcp.get_gpio_pin_val(self.handle)
+        if result != 0:
+            raise RuntimeError("Failed to get GPIO pin value.")
+        current_val = current_val  | RESET_MASK
+        self.mcp.set_gpio_pin_val(self.handle, current_val)
+        current_val = current_val  & ~RESET_MASK  #CHATGPT - что делает тильда знак?
+        self.mcp.set_gpio_pin_val(self.handle, current_val)
         print("reset_PCB function succesfully done.")
 
     def CloseDevice(self):
         self.mcp.close_device(self.handle)
 
-    def MCP23S17_Send_SPI_command(device_address, rw_mode, register, data_to_send):
+    def SPI_send_command (self, data_tx, transfer_size, cs_mask):
+        results = self.mcp.xfer_spi_data(self.handle, data_tx, self.default_baud_rate, transfer_size, cs_mask)
+        print ('Responce is: ' + str(results))
+        return results
+
+    def MCP23S17_Send_SPI_command(self, device_address, rw_mode, register, data_to_send):
 
         if rw_mode not in ('r', 'w'):
             raise ValueError(f"Invalid rw_mode: {rw_mode}. Must be 'r' or 'w'.")
-
         # Проверка device_address
         if device_address not in range(6):
             raise ValueError(f"Invalid device_address: {device_address}. Must be 0-5.")
-
-        # Проверка register
-        if register not in (0x0A, 0x1A):
-            raise ValueError(f"Invalid register: {register}. Must be 0x0A or 0x1A.")
-
         # Проверка data
-        if not (0x00 <= data <= 0xFF):
-            raise ValueError(f"Invalid data: {data}. Must be between 0x00 and 0xFF.")
+        if not (0x00 <= data_to_send <= 0xFF):
+            raise ValueError(f"Invalid data: {data_to_send}. Must be between 0x00 and 0xFF.")
+        if register not in [0x0A, 0x1A]:
+            raise ValueError(f"Invalid data: {register}. Must be 0x0A, 0x1A")
 
-        base = 0b01000000            
-        control_byte = base | (device_address << 1) | rw_mode # Сдвиг MUX_address на 1 бит влево и объединение с базовым значением
-
+        rw_bit = 0x01 if rw_mode == 'r' else 0x00        
+        data = 0b01000000 | (device_address << 1) | rw_bit # Сдвиг MUX_address на 1 бит влево и объединение с базовым значением
         
+        data_tx = [data, register, data_to_send]
+        results = self.SPI_send_command(data_tx, 3, self.cs_mask)
+        return results
+
+    def MCP23S17_set_output(self, device_address, output_value):
+        if device_address not in range(6):
+            raise ValueError(f"Invalid device_address: {device_address}. Must be 0-5.") 
+        if not (0x00 <= output_value <= 0xFFFF):
+            raise ValueError(f"Invalid data: {output_value}. Must be between 0x00 and 0xFFFF.")
+        
+        if output_value > 0xFF:
+            output_value_low_byte = output_value & 0x00FF
+            output_value_high_byte = (output_value & 0xFF00) >> 8
+            result1 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x0A, output_value_low_byte)
+            result2 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x1A, output_value_high_byte)
+        elif output_value <= 0xff:
+            result1 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x0A, output_value)
+
+    def MCP23S17_get_output(self, device_address):
+        if device_address not in range(6):
+            raise ValueError(f"Invalid device_address: {device_address}. Must be 0-5.") 
+        result1 = self.MCP23S17_Send_SPI_command(device_address, 'r', 0x0A, 0x00)
+        result2 = self.MCP23S17_Send_SPI_command(device_address, 'r', 0x1A, 0x00)
+        result = 0x0000 #TODO: Добавить сложение битов result = result1 + result2
+        return result 
+
+
+class MechanicalSwitcher:
+    def __init__(self, swb, address, state="NC"):
+        """
+        Конструктор класса MechanicalSwitcher.
+        :param swb: объект свитчборда.
+        :param address: Уникальный адрес переключателя.
+        :param state: Состояние переключателя, может быть 'NO' или 'NC'.
+        """
+        self.address = address
+        self.device_address = None 
+        self.GPIO_mask = None 
+        self.swb = swb
+        if state not in ["NO", "NC"]:
+            raise ValueError(f"Invalid state: {state}. Must be 'NO' or 'NC'.")
+        self.state = state
+        self.configure_by_address()
+
+    def toggle_state(self):
+        """
+        Переключает состояние между 'NO' и 'NC'.
+        """
+        self.state = "NC" if self.state == "NO" else "NO"
+
+    def get_state(self):
+        """
+        Возвращает текущее состояние переключателя.
+        """
+        response = self.swb.MCP23S17_get_output(self.device_address)
+        self.state = "NO" if response & self.GPIO_mask else "NC"
+        return self.state
+
+    def set_state(self, state):
+        """
+        Устанавливает состояние переключателя.
+        :param state: Новое состояние ('NO' или 'NC').
+        """
+        if state not in ["NO", "NC"]:
+            raise ValueError("Состояние может быть только 'NO' или 'NC'.")
+        current_state = self.get_state()
+        if current_state == state:
+            print ("Needed value is already set")
+        else:
+            self.state = state
+            current_output = self.swb.MCP23S17_get_output(self.device_address)
+            if self.state == "NO":
+                new_output = current_output | self.GPIO_mask
+            else:
+                new_output = current_output & ~self.GPIO_mask
+            self.swb.MCP23S17_set_output(self.device_address, new_output)
+
+    def configure_by_address(self):
+        address_map = {
+            "MCPIO5Q0": (5, 0b00000001),
+            "MCPIO5Q1": (5, 0b00000010),
+            "MCPIO5Q2": (5, 0b00000100),
+            "MCPIO5Q3": (5, 0b00001000),
+            "MCPIO5Q4": (5, 0b00010000),
+            "MCPIO5Q5": (5, 0b00100000),
+        }
+        if self.address not in address_map:
+            raise ValueError(f"Unknown address: {self.address}")
+        self.device_address, self.GPIO_mask = address_map[self.address]
+
+    def __repr__(self):
+        """
+        Возвращает строковое представление объекта.
+        """
+        return f"MechanicalSwitcher(address={self.address}, state={self.state})"
+    
+class Var:
+    def __init__(self, address, value=0.0):
+        """
+        Конструктор класса Var.
+        :param address: Уникальный адрес переменной.
+        :param value: Значение переменной в диапазоне от -1.1 до 1.1.
+        """
+        self.address = address
+        self.set_current_value(value)
+
+    def get_current_value(self):
+        """
+        Возвращает текущее значение переменной.
+        """
+        return self.value
+
+    def set_current_value(self, value):
+        """
+        Устанавливает значение переменной.
+        :param value: Новое значение в диапазоне от -1.1 до 1.1.
+        """
+        if not -1.1 <= value <= 1.1:
+            raise ValueError("Значение должно быть в диапазоне от -1.1 до 1.1.")
+        self.value = value
