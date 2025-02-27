@@ -147,6 +147,20 @@ class MCP2210:
         ]
         self.dll.Mcp2210_SetGpioConfig.restype = ctypes.c_int
 
+        self.dll.Mcp2210_SetSpiConfig.argtypes = [
+            ctypes.c_void_p,                        # void* handle (Device handle)
+            ctypes.c_ubyte,                         # unsigned char cfgSelector (VM or NVRAM config)
+            ctypes.POINTER(ctypes.c_uint),          # unsigned int* pbaudRate (SPI clock speed)
+            ctypes.POINTER(ctypes.c_uint),          # unsigned int* pidleCsVal (CS idle value)
+            ctypes.POINTER(ctypes.c_uint),          # unsigned int* pactiveCsVal (CS active value)
+            ctypes.POINTER(ctypes.c_uint),          # unsigned int* pCsToDataDly (CS to first data delay)
+            ctypes.POINTER(ctypes.c_uint),          # unsigned int* pdataToCsDly (Last data byte to CS delay)
+            ctypes.POINTER(ctypes.c_uint),          # unsigned int* pdataToDataDly (Inter-byte delay)
+            ctypes.POINTER(ctypes.c_uint),          # unsigned int* ptxferSize (Number of bytes per SPI transfer)
+            ctypes.POINTER(ctypes.c_ubyte)          # unsigned char* pspiMd (SPI mode selection)
+        ]
+
+
         ################################################################################################################
         #Временные настройки закончились
 
@@ -705,6 +719,7 @@ class MCP2210:
         }
 
     def xfer_spi_data(self, handle, data_tx, baud_rate, transfer_size, cs_mask):
+         
         """
         Обертка для вызова функции Mcp2210_xferSpiData.
 
@@ -729,7 +744,7 @@ class MCP2210:
         data_rx_buffer = (ctypes.c_ubyte * transfer_size)()  # Буфер для приёма данных того же размера
         c_baud_rate = ctypes.c_uint(baud_rate)
         c_transfer_size = ctypes.c_uint(transfer_size)
-
+        cs_mask = 0x80000000
         # Вызов функции DLL
         result = self.dll.Mcp2210_xferSpiData(
             ctypes.c_void_p(handle),
@@ -754,6 +769,71 @@ class MCP2210:
             "transfer_size": c_transfer_size.value
         }
 
+
+    def mcp2210_xfer_spi_data_ex(self, handle = 1368, data_tx = [255, 255], baud_rate = 10000000, txfer_size = 2, csmask = 4,
+                                idle_cs_val = 1, active_cs_val= 0, cs_to_data_dly = 0,
+                                data_to_cs_dly = 0, data_to_data_dly = 0, spi_mode = 0):
+        """
+        Конфигурирует и выполняет передачу данных по SPI с устройством MCP2210.
+
+        :param handle: Указатель на дескриптор устройства (ctypes void pointer).
+        :param data_tx: Байтовый массив данных для передачи (list or bytes).
+        :param baud_rate: Скорость передачи SPI (int).
+        :param txfer_size: Размер данных для передачи (int).
+        :param csmask: Битовая маска выбора чип-селектов (int).
+        :param idle_cs_val: Значение чип-селекта в состоянии покоя (int).
+        :param active_cs_val: Значение активного чип-селекта (int).
+        :param cs_to_data_dly: Задержка от выбора CS до начала данных (int).
+        :param data_to_cs_dly: Задержка после последнего байта до сброса CS (int).
+        :param data_to_data_dly: Задержка между байтами (int).
+        :param spi_mode: Режим SPI (MCP2210_SPI_MODE0-3).
+        :return: Кортеж (код возврата, полученные данные).
+        """
+
+        # Преобразование входных данных в ctypes
+        pdata_tx = (ctypes.c_ubyte * len(data_tx))(*data_tx)
+        pdata_rx = (ctypes.c_ubyte * len(data_tx))()  # Буфер приема
+
+        # Преобразование переменных для передачи по указателям
+        baud_rate_c = ctypes.c_uint(baud_rate)
+        txfer_size_c = ctypes.c_uint(txfer_size)
+        idle_cs_val_c = ctypes.c_uint(idle_cs_val)
+        active_cs_val_c = ctypes.c_uint(active_cs_val)
+        cs_to_data_dly_c = ctypes.c_uint(cs_to_data_dly)
+        data_to_cs_dly_c = ctypes.c_uint(data_to_cs_dly)
+        data_to_data_dly_c = ctypes.c_uint(data_to_data_dly)
+        spi_mode_c = ctypes.c_ubyte(spi_mode)
+
+        # Вызов функции из библиотеки
+        ret = self.dll.Mcp2210_xferSpiDataEx(
+            handle,
+            ctypes.byref(pdata_tx),
+            ctypes.byref(pdata_rx),
+            ctypes.byref(baud_rate_c),
+            ctypes.byref(txfer_size_c),
+            ctypes.c_uint(csmask),
+            ctypes.byref(idle_cs_val_c),
+            ctypes.byref(active_cs_val_c),
+            ctypes.byref(cs_to_data_dly_c),
+            ctypes.byref(data_to_cs_dly_c),
+            ctypes.byref(data_to_data_dly_c),
+            ctypes.byref(spi_mode_c)
+        )
+
+        # Преобразование буфера в Python список
+        received_data = list(pdata_rx)
+
+        return ret, received_data
+
+
+
+
+
+
+
+
+
+
     def dictionary_to_binary_number(self, gpio_dict):
         sorted_keys = sorted(gpio_dict.keys(), key=lambda x: int(x[4:]), reverse=True)
         binary_string = ''.join(str(int(gpio_dict[key])) for key in sorted_keys)
@@ -770,3 +850,62 @@ class MCP2210:
             temperature_raw -= 0x2000
         # Преобразуем в температуру
         return temperature_raw * 0.0625
+
+
+    def set_spi_config(self, handle, cfgSelector, baudRate, idleCsVal, activeCsVal, 
+                    csToDataDly, dataToCsDly, dataToDataDly, txferSize, spiMd):
+        """
+        Configures SPI settings for MCP2210 for either the current (VM) configuration 
+        or the default startup (NVRAM) configuration.
+
+        Args:
+            handle (ctypes.c_void_p): Device handle.
+            cfgSelector (int): Selects current or startup configuration.
+                            Possible values:
+                            - MCP2210_VM_CONFIG (current configuration)
+                            - MCP2210_NVRAM_CONFIG (startup configuration)
+            baudRate (int): SPI clock speed in bits per second.
+            idleCsVal (int): Chip Select (CS) value when idle.
+            activeCsVal (int): Chip Select (CS) value when active.
+            csToDataDly (int): Delay from CS assertion to first data transmission (in 100 µs units).
+            dataToCsDly (int): Delay from last data byte to CS deassertion (in 100 µs units).
+            dataToDataDly (int): Delay between consecutive data bytes (in 100 µs units).
+            txferSize (int): Number of bytes per SPI transaction.
+            spiMd (int): SPI Mode (0-3):
+                        - 0 = SPI Mode 0 (CPOL=0, CPHA=0)
+                        - 1 = SPI Mode 1 (CPOL=0, CPHA=1)
+                        - 2 = SPI Mode 2 (CPOL=1, CPHA=0)
+                        - 3 = SPI Mode 3 (CPOL=1, CPHA=1)
+
+        Raises:
+            ValueError: If the DLL function returns an error.
+        """
+        # Prepare input variables
+        baudRate_c = ctypes.c_uint(baudRate)
+        idleCsVal_c = ctypes.c_uint(idleCsVal)
+        activeCsVal_c = ctypes.c_uint(activeCsVal)
+        csToDataDly_c = ctypes.c_uint(csToDataDly)
+        dataToCsDly_c = ctypes.c_uint(dataToCsDly)
+        dataToDataDly_c = ctypes.c_uint(dataToDataDly)
+        txferSize_c = ctypes.c_uint(txferSize)
+        spiMd_c = ctypes.c_ubyte(spiMd)
+
+        # Call the DLL function to set SPI configuration
+        result = self.dll.Mcp2210_SetSpiConfig(
+            ctypes.c_void_p(handle),
+            ctypes.c_ubyte(cfgSelector),
+            ctypes.byref(baudRate_c),
+            ctypes.byref(idleCsVal_c),
+            ctypes.byref(activeCsVal_c),
+            ctypes.byref(csToDataDly_c),
+            ctypes.byref(dataToCsDly_c),
+            ctypes.byref(dataToDataDly_c),
+            ctypes.byref(txferSize_c),
+            ctypes.byref(spiMd_c)
+        )
+
+        # Check the result and raise an exception if an error occurs
+        if result != 0:
+            raise ValueError(f"Failed to set SPI configuration, error code: {result}")
+
+        print("SPI configuration successfully applied.")

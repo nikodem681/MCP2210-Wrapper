@@ -3,10 +3,8 @@ from tkinter import messagebox, ttk
 from mcp2210_wrapper import MCP2210
 import constants
 import time
-import matplotlib.pyplot as plt
 from collections import deque
 import threading
-import matplotlib.pyplot as plt
 from collections import deque
 from Switchboard_18GHz import Switchboard_18GHz
 
@@ -32,14 +30,47 @@ def toggle_button_color(button):
 
 
 def on_button_click(button, text):
-    toggle_button_color(button)
-    messagebox.showinfo("Action", f"You clicked: {text}")
-
+    #toggle_button_color(button)
+    if text == "mech_sw_1":
+        swb.Mech_sw_1.toggle_state()
+    if text == "mech_sw_2":
+        swb.Mech_sw_2.toggle_state()
+    if text == "mech_sw_3":
+        swb.Mech_sw_3.toggle_state()
+    if text == "mech_sw_4":
+        swb.Mech_sw_4.toggle_state()
+    if text == "mech_sw_5":
+        swb.Mech_sw_5.toggle_state()          
 
 def on_dropdown_select(event):
     selected_option = event.widget.get()
     messagebox.showinfo("Dropdown Selected", f"You selected: {selected_option}")
 
+
+def on_slider_change(value, slider_name):
+    """Handles the slider value change event."""
+    print(f"{slider_name} changed to {value}")  # Debugging output
+    
+    # Example: if var_x controls a voltage on AD5726
+    if "var_" in slider_name:
+        channel = int(slider_name.split("_")[1])  # Extract channel number
+        match channel:
+            case 1:
+                swb.AD5726_2.set_output_voltage(3, value)
+            case 2:
+                swb.AD5726_2.set_output_voltage(2, value)
+            case 3:
+                swb.AD5726_2.set_output_voltage(1, value)
+            case 4:
+                swb.AD5726_2.set_output_voltage(0, value)
+            case 5:
+                swb.AD5726_1.set_output_voltage(3, value)
+            case 6:
+                swb.AD5726_1.set_output_voltage(2, value)  
+            case 7:
+                swb.AD5726_1.set_output_voltage(1, value) 
+            case 8:
+                swb.AD5726_1.set_output_voltage(0, value)
 
 def on_popup_button_click(action):
     if action == "Connect":
@@ -70,10 +101,12 @@ dropdown_label.grid(row=0, column=0, padx=5, pady=5)
 
 dropdown_var = tk.StringVar()
 dropdown = ttk.Combobox(top_frame, textvariable=dropdown_var, state="readonly", width=15)
-dropdown['values'] = Serial_no_list  # Замените на список устройств
-dropdown.current(0)
-dropdown.bind("<<ComboboxSelected>>", on_dropdown_select)
+dropdown['values'] = Serial_no_list  # Установите список значений
+dropdown.current(0)  # Установите первый элемент по умолчанию
+dropdown_var.set(dropdown['values'][0])  # Принудительно синхронизируем переменную
 dropdown.grid(row=0, column=1, padx=5, pady=5)
+
+print(f"Dropdown value: {dropdown_var.get()}")
 
 # Кнопки Connect, Disconnect, Reset
 btn_connect = tk.Button(top_frame, text="Connect", width=10, command=lambda: on_popup_button_click("Connect"))
@@ -114,10 +147,13 @@ for x in range(1, 9):
     button.grid(row=(x - 1) % 4 + 1, column=5 + (x - 1) // 4, padx=5, pady=5)
     button.config(command=lambda btn=button, x=x: on_button_click(btn, f"IQ-ATT_{x}"))
 
-# Ползунки "var_x"
+# "var_x" sliders
 for x in range(1, 9):
-    tk.Label(root, text=f"var_{x}").grid(row=x - 1, column=8, padx=5, pady=5, sticky=tk.W)
-    slider = tk.Scale(root, from_=-1.1, to=1.1, resolution=0.01, orient=tk.HORIZONTAL, length=150)
+    slider_label = f"var_{x}"
+    tk.Label(root, text=slider_label).grid(row=x - 1, column=8, padx=5, pady=5, sticky=tk.W)
+    
+    slider = tk.Scale(root, from_=-1.1, to=1.1, resolution=0.01, orient=tk.HORIZONTAL, length=150,
+                      command=lambda value, name=slider_label: on_slider_change(value, name))
     slider.grid(row=x - 1, column=9, padx=5, pady=5)
 
 # Ползунки "Mech_att_x"

@@ -1,12 +1,12 @@
 from mcp2210_wrapper import MCP2210
 import constants
+import time
 
 class Switchboard_18GHz:
     def __init__(self):
         self.mcp = MCP2210()
         self.cs_mask = 0b000010000
-        self.default_baud_rate = 10000000
-        
+        self.default_baud_rate = 1000000
 
     def connect(self, serial_no):
         self.serial_no = serial_no
@@ -24,7 +24,7 @@ class Switchboard_18GHz:
             constants.pGpioPinDes.MCP2210_PIN_DES_CS,  # GPIO3
             constants.pGpioPinDes.MCP2210_PIN_DES_CS,  # GPIO4
             constants.pGpioPinDes.MCP2210_PIN_DES_GPIO,  # GPIO5 reset
-            constants.pGpioPinDes.MCP2210_PIN_DES_CS,  # GPIO6
+            constants.pGpioPinDes.MCP2210_PIN_DES_GPIO,  # GPIO6 (DAC LDAC)
             constants.pGpioPinDes.MCP2210_PIN_DES_CS,  # GPIO7
             constants.pGpioPinDes.MCP2210_PIN_DES_CS,  # GPIO8
         ]
@@ -67,6 +67,20 @@ class Switchboard_18GHz:
             interrupt_mode,
             spi_bus_release
         )
+
+        self.mcp.set_spi_config(
+        self.handle,
+        0,  # Volatile Memory,
+        30000000,
+        0x111111111,
+        0x000000000, 
+        1,
+        1,
+        1,
+        2,
+        3)
+
+
         if result == 0:
             print("MCP has initializied succesfully...")
         
@@ -77,12 +91,14 @@ class Switchboard_18GHz:
         for i in range (0,5,1):
             self.init_MCP23S17(i)
         
-        Mech_sw_1 = MechanicalSwitcher(swb = self, address = "MCPIO5Q0")
-        Mech_sw_2 = MechanicalSwitcher(swb = self, address = "MCPIO5Q1")
-        Mech_sw_3 = MechanicalSwitcher(swb = self, address = "MCPIO5Q2")
-        Mech_sw_4 = MechanicalSwitcher(swb = self, address = "MCPIO5Q3")
-        Mech_sw_5 = MechanicalSwitcher(swb = self, address = "MCPIO5Q4")
+        self.Mech_sw_1 = MechanicalSwitcher(swb = self, address = "MCPIO5Q0")
+        self.Mech_sw_2 = MechanicalSwitcher(swb = self, address = "MCPIO5Q1")
+        self.Mech_sw_3 = MechanicalSwitcher(swb = self, address = "MCPIO5Q2")
+        self.Mech_sw_4 = MechanicalSwitcher(swb = self, address = "MCPIO5Q3")
+        self.Mech_sw_5 = MechanicalSwitcher(swb = self, address = "MCPIO5Q4")
 
+        self.AD5726_1 = AD5726(swb = self, spichannel = 2)
+        self.AD5726_2 = AD5726(swb = self, spichannel = 3)
 
     def __del__(self):
         try:
@@ -106,10 +122,10 @@ class Switchboard_18GHz:
         data_tx_b = [control_byte, 0x10, 0x00]  # PORTB все как выходы
         self.SPI_send_command(data_tx_b, transfer_size, self.cs_mask)
         # Установить OLATA
-        data_tx_a = [control_byte, 0x0A, 0xFF]  # PORTA = лог. 1
+        data_tx_a = [control_byte, 0x0A, 0x00]  # PORTA = лог. 0
         self.SPI_send_command(data_tx_a, transfer_size, self.cs_mask)
         # Установить OLATB
-        data_tx_b = [control_byte, 0x1A, 0xFF]  # PORTB = лог. 1
+        data_tx_b = [control_byte, 0x1A, 0x00]  # PORTB = лог. 0
         self.SPI_send_command(data_tx_b, transfer_size, self.cs_mask)
         
     def set_MUX_channel(self, channel_N):
@@ -140,7 +156,7 @@ class Switchboard_18GHz:
 
     def SPI_send_command (self, data_tx, transfer_size, cs_mask):
         results = self.mcp.xfer_spi_data(self.handle, data_tx, self.default_baud_rate, transfer_size, cs_mask)
-        print ('Responce is: ' + str(results))
+        #print ('Responce is: ' + str(results))
         return results
 
     def MCP23S17_Send_SPI_command(self, device_address, rw_mode, register, data_to_send):
@@ -180,10 +196,19 @@ class Switchboard_18GHz:
     def MCP23S17_get_output(self, device_address):
         if device_address not in range(6):
             raise ValueError(f"Invalid device_address: {device_address}. Must be 0-5.") 
+         # Чтение двух регистров
         result1 = self.MCP23S17_Send_SPI_command(device_address, 'r', 0x0A, 0x00)
         result2 = self.MCP23S17_Send_SPI_command(device_address, 'r', 0x1A, 0x00)
-        result = 0x0000 #TODO: Добавить сложение битов result = result1 + result2
-        return result 
+        
+        # Извлечение значений
+        result1 = result1['data_rx'][2]  # Младший байт
+        result2 = result2['data_rx'][2]  # Старший байт
+        
+        # Сдвиг и сложение
+        result = result1 + (result2 << 8)  # Сдвиг result2 на 8 бит влево и сложение с result1
+        print(f"Вернулось значение: {bin(result)}")  # Двоичное представление результата
+
+        return result
 
 
 class MechanicalSwitcher:
@@ -207,12 +232,15 @@ class MechanicalSwitcher:
         """
         Переключает состояние между 'NO' и 'NC'.
         """
-        self.state = "NC" if self.state == "NO" else "NO"
+        current_state = self.get_state()
+        self.set_state("NO") if current_state == "NC" else self.set_state("NC")
+        
 
     def get_state(self):
         """
         Возвращает текущее состояние переключателя.
         """
+        self.swb.set_MUX_channel(0)
         response = self.swb.MCP23S17_get_output(self.device_address)
         self.state = "NO" if response & self.GPIO_mask else "NC"
         return self.state
@@ -222,6 +250,7 @@ class MechanicalSwitcher:
         Устанавливает состояние переключателя.
         :param state: Новое состояние ('NO' или 'NC').
         """
+        self.swb.set_MUX_channel(0)
         if state not in ["NO", "NC"]:
             raise ValueError("Состояние может быть только 'NO' или 'NC'.")
         current_state = self.get_state()
@@ -279,3 +308,43 @@ class Var:
         if not -1.1 <= value <= 1.1:
             raise ValueError("Значение должно быть в диапазоне от -1.1 до 1.1.")
         self.value = value
+
+class AD5726:
+    def __init__(self, swb, spichannel, LDAC_pin = 6, vref_P=1.5, vref_N=-1.5):
+        """
+        Конструктор класса AD5726.
+        :param swb: это класс switchboard 18GHz и никакой другой
+        :param spichannel: Уникальный адрес SPI, задается с помощью MUX функции.
+        :param vref_P: Референсное напряжение на vref_P.
+        :param vref_N: Референсное напряжение на vref_N.
+        :param LDAC_pin: Пин с MCP, который подключен.
+        """
+        if not isinstance(swb, Switchboard_18GHz):
+            raise TypeError(f"swb должен быть экземпляром класса Switchboard_18GHz, а не {type(swb).__name__}.")
+        self.swb = swb
+        self.spichannel = spichannel
+        self.LDAC_pin = LDAC_pin
+        self.vref_P = vref_P
+        self.vref_N = vref_N
+    
+    def set_output_voltage(self, channel, value):
+        """
+        Метод, который выставляет выходное напряжение
+        :param channel: Канал, который может быть 1, 2, 3, 4 
+        :param value: значение напряжение, которое мы хотим получить
+        """
+        value = float(value)
+        if not (-1.5 < value < 1.5):
+            raise ValueError(f"Значение {value} выходит за пределы диапазона (-1.5, 1.5).")
+        data = int(((value - self.vref_N) * 4096) / (self.vref_P - self.vref_N))
+        lo_byte = data & 0xff
+        hi_byte= (channel << 6) | (data >> 8)
+        data_tx = [hi_byte, lo_byte]
+        print(f"hi: {bin(hi_byte)} lo: {bin(lo_byte)}")
+        transfer_size = 2
+        self.swb.set_MUX_channel(self.spichannel)
+        result = self.swb.mcp.get_gpio_pin_val(self.swb.handle)
+        self.swb.mcp.set_gpio_pin_val(self.swb.handle, result[1] | (1<<self.LDAC_pin))
+        self.swb.SPI_send_command (data_tx, transfer_size, self.swb.cs_mask)
+        self.swb.mcp.set_gpio_pin_val(self.swb.handle, result[1] & ~(1<<self.LDAC_pin))
+        self.swb.mcp.set_gpio_pin_val(self.swb.handle, result[1] | (1<<self.LDAC_pin))
