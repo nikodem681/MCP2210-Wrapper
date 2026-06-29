@@ -185,13 +185,12 @@ class Switchboard_18GHz:
         if not (0x00 <= output_value <= 0xFFFF):
             raise ValueError(f"Invalid data: {output_value}. Must be between 0x00 and 0xFFFF.")
         
-        if output_value > 0xFF:
-            output_value_low_byte = output_value & 0x00FF
-            output_value_high_byte = (output_value & 0xFF00) >> 8
-            result1 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x0A, output_value_low_byte)
-            result2 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x1A, output_value_high_byte)
-        elif output_value <= 0xff:
-            result1 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x0A, output_value)
+        # Always write both ports so the high byte (OLATB) is never left stale
+        # when stepping down from a >0xFF value to a small one.
+        output_value_low_byte = output_value & 0x00FF
+        output_value_high_byte = (output_value & 0xFF00) >> 8
+        result1 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x0A, output_value_low_byte)
+        result2 = self.MCP23S17_Send_SPI_command(device_address, 'w', 0x1A, output_value_high_byte)
 
     def MCP23S17_get_output(self, device_address):
         if device_address not in range(6):
