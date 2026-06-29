@@ -364,13 +364,13 @@ except Exception as e:
     print(f"Ошибка подключения: {e}")
 
 #FSV40_N = SA_init("192.168.2.165")
-FSV40_N = SA_init("192.168.2.154") #bad rohde shwarz
+#FSV40_N = SA_init("192.168.2.154") #bad rohde shwarz
 
 
-ANAPICO.write("FREQ 1e9")
-ANAPICO.write("POW -10")
-ANAPICO.write("OUTP OFF")
-ANAPICO.write("OUTP2 ON")
+#ANAPICO.write("FREQ 1e9")
+#ANAPICO.write("POW -10")
+#ANAPICO.write("OUTP OFF")
+#ANAPICO.write("OUTP2 ON")
 
 import time
 import pandas as pd

@@ -1,5 +1,5 @@
-from mcp2210_wrapper import MCP2210
-import constants
+from .mcp2210_wrapper import MCP2210
+from . import constants
 import time
 
 class Switchboard_18GHz:
