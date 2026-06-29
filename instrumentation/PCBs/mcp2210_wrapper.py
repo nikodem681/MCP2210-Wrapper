@@ -466,7 +466,7 @@ class MCP2210:
             return result
         except Exception as e:
             print(f"Error calling DLL function: {e}")
-            return self.E_ERR_UNKNOWN_ERROR
+            return -1  # E_ERR_UNKOWN_ERROR
         
     def reset_device(self, handle):
         """
@@ -749,8 +749,7 @@ class MCP2210:
         data_rx_buffer = (ctypes.c_ubyte * transfer_size)()  # Буфер для приёма данных того же размера
         c_baud_rate = ctypes.c_uint(baud_rate)
         c_transfer_size = ctypes.c_uint(transfer_size)
-        cs_mask = 0x80000000
-        # Вызов функции DLL
+        # Вызов функции DLL (cs_mask is honored as passed by the caller)
         result = self.dll.Mcp2210_xferSpiData(
             ctypes.c_void_p(handle),
             data_tx_buffer,

@@ -82,11 +82,9 @@ def on_popup_button_click(action):
     if action == "Connect":
         Serial_no = dropdown_var.get()
         swb.connect(Serial_no)
-
-    if action == "Disconnect":
+    elif action == "Disconnect":
         swb.CloseDevice()
-
-    if action == "Reset":
+    elif action == "Reset":
         swb.reset_PCB()
     else:
         messagebox.showinfo("Action", f"You selected: {action}")
