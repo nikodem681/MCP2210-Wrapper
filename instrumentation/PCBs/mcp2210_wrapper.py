@@ -1,14 +1,19 @@
 import ctypes
-import constants
+import os
+from . import constants
 
 #Used constants
 
+# Default DLL location: resolved relative to this file so it works from any cwd.
+_DEFAULT_DLL_PATH = os.path.join(os.path.dirname(__file__), "MCP2210", "mcp2210_dll_um_x64.dll")
+
 class MCP2210:
-    def __init__(self):
+    def __init__(self, dll_path=None):
         """
         Инициализация и загрузка DLL.
         """
-        dll_path = "MCP2210/mcp2210_dll_um_x64.dll"
+        if dll_path is None:
+            dll_path = _DEFAULT_DLL_PATH
         self.dll = ctypes.WinDLL(dll_path)
         version = self.get_library_version()
         print("Версия dll: " + str(version))
