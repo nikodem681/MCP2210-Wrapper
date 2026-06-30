@@ -9,6 +9,7 @@ from tkinter import messagebox, ttk
 from instrumentation.PCBs.mcp2210_wrapper import MCP2210
 
 
+ 
 DEFAULT_VID = 0x4D8
 DEFAULT_PID = 0xDE
  
@@ -18,11 +19,12 @@ class Mcp2210App(tk.Tk):
         super().__init__()
  
         self.title("MCP2210 Configurator")
-        self.geometry("800x600")
+        self.geometry("550x500")
         self.resizable(False, False)
  
         self.mcp = None          # MCP2210 instance (DLL wrapper)
         self.handle = None       # Currently open device handle
+        self.current_index = -1  # Index of the currently opened device (-1 = none)
  
         self._build_ui()
  
@@ -36,26 +38,12 @@ class Mcp2210App(tk.Tk):
         conn_frame = ttk.LabelFrame(self, text="Connection")
         conn_frame.pack(fill="x", **pad)
  
-        ttk.Label(conn_frame, text="VID (hex):").grid(row=0, column=0, sticky="w", padx=5, pady=5)
-        self.vid_var = tk.StringVar(value=f"{DEFAULT_VID:04X}")
-        ttk.Entry(conn_frame, textvariable=self.vid_var, width=10).grid(row=0, column=1, padx=5, pady=5)
- 
-        ttk.Label(conn_frame, text="PID (hex):").grid(row=0, column=2, sticky="w", padx=5, pady=5)
-        self.pid_var = tk.StringVar(value=f"{DEFAULT_PID:04X}")
-        ttk.Entry(conn_frame, textvariable=self.pid_var, width=10).grid(row=0, column=3, padx=5, pady=5)
- 
-        ttk.Button(conn_frame, text="Count Devices", command=self.on_count_devices)\
-            .grid(row=1, column=0, columnspan=2, sticky="we", padx=5, pady=5)
- 
-        self.count_var = tk.StringVar(value="Devices found: -")
-        ttk.Label(conn_frame, textvariable=self.count_var).grid(row=1, column=2, columnspan=2, sticky="w", padx=5, pady=5)
- 
-        ttk.Button(conn_frame, text="Open First Device", command=self.on_open_device)\
-            .grid(row=2, column=0, columnspan=2, sticky="we", padx=5, pady=5)
+        ttk.Button(conn_frame, text="Connect", command=self.on_open_device)\
+            .grid(row=0, column=0, sticky="we", padx=5, pady=8)
  
         self.status_var = tk.StringVar(value="Not connected")
-        ttk.Label(conn_frame, textvariable=self.status_var, foreground="blue")\
-            .grid(row=2, column=2, columnspan=2, sticky="w", padx=5, pady=5)
+        self.status_label = ttk.Label(conn_frame, textvariable=self.status_var, foreground="red")
+        self.status_label.grid(row=0, column=1, sticky="w", padx=5, pady=8)
  
         # --- Read frame ---
         read_frame = ttk.LabelFrame(self, text="Device Strings (read)")
@@ -114,15 +102,6 @@ class Mcp2210App(tk.Tk):
         self.log_text.see("end")
         self.log_text.configure(state="disabled")
  
-    def _get_vid_pid(self):
-        try:
-            vid = int(self.vid_var.get(), 16)
-            pid = int(self.pid_var.get(), 16)
-            return vid, pid
-        except ValueError:
-            messagebox.showerror("Invalid input", "VID/PID must be valid hexadecimal numbers.")
-            return None, None
- 
     def _ensure_mcp(self):
         if self.mcp is None:
             try:
@@ -142,36 +121,54 @@ class Mcp2210App(tk.Tk):
     # ------------------------------------------------------------------ #
     # Button callbacks
     # ------------------------------------------------------------------ #
-    def on_count_devices(self):
-        vid, pid = self._get_vid_pid()
-        if vid is None:
-            return
+    def on_open_device(self):
         mcp = self._ensure_mcp()
         if mcp is None:
             return
+ 
         try:
-            count = mcp.get_connected_device_count(vid=vid, pid=pid)
-            self.count_var.set(f"Devices found: {count}")
-            self._log(f"Found {count} device(s) for VID=0x{vid:04X}, PID=0x{pid:04X}.")
+            count = mcp.get_connected_device_count(vid=DEFAULT_VID, pid=DEFAULT_PID)
         except Exception as e:
             messagebox.showerror("Error", str(e))
             self._log(f"Error counting devices: {e}")
+            return
  
-    def on_open_device(self):
-        vid, pid = self._get_vid_pid()
-        if vid is None:
+        if count <= 0:
+            self.status_var.set("Not connected")
+            self.status_label.configure(foreground="red")
+            messagebox.showerror("No device", "No MCP2210 device found.")
+            self._log("No MCP2210 device found.")
             return
-        mcp = self._ensure_mcp()
-        if mcp is None:
+ 
+        # If only one device is plugged in and we're already connected to it, just notify.
+        if count == 1 and self.handle is not None:
+            messagebox.showinfo("Already connected", "The MCP is already connected")
+            self._log("Connect pressed: only one MCP present and it is already connected.")
             return
+ 
+        # Close the currently open device (if any) before opening the next one.
+        if self.handle is not None:
+            try:
+                self.mcp.close_device(self.handle)
+            except Exception:
+                pass
+            self.handle = None
+ 
+        next_index = (self.current_index + 1) % count + 1
+ 
         try:
-            self.handle = mcp.open_device_by_index(vid=vid, pid=pid, index=0)
+            self.handle = mcp.open_device_by_index(vid=DEFAULT_VID, pid=DEFAULT_PID, index=next_index)
+            self.current_index = next_index
             self.status_var.set("Connected")
-            self._log("Device opened successfully (index 0).")
+            self.status_label.configure(foreground="green")
+            self._log(f"Device opened successfully (MCP2210 {next_index} of {count}).")
             # Auto-refresh strings on open
             self.on_read_strings()
         except Exception as e:
+            self.handle = None
+            self.current_index = -1
             self.status_var.set("Not connected")
+            self.status_label.configure(foreground="red")
             messagebox.showerror("Error opening device", str(e))
             self._log(f"Error opening device: {e}")
  
