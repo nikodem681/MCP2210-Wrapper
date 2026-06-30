@@ -165,6 +165,32 @@ class MCP2210:
             ctypes.POINTER(ctypes.c_ubyte)          # unsigned char* pspiMd (SPI mode selection)
         ]
 
+        # USB string descriptors (stored in NVRAM)
+        self.dll.Mcp2210_GetManufacturerString.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+        self.dll.Mcp2210_GetManufacturerString.restype = ctypes.c_int
+        self.dll.Mcp2210_SetManufacturerString.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+        self.dll.Mcp2210_SetManufacturerString.restype = ctypes.c_int
+        self.dll.Mcp2210_GetProductString.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+        self.dll.Mcp2210_GetProductString.restype = ctypes.c_int
+        self.dll.Mcp2210_SetProductString.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
+        self.dll.Mcp2210_SetProductString.restype = ctypes.c_int
+
+        # USB key params (VID/PID/power source/remote wakeup/current, stored in NVRAM)
+        self.dll.Mcp2210_GetUsbKeyParams.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_ushort),   # vid
+            ctypes.POINTER(ctypes.c_ushort),   # pid
+            ctypes.POINTER(ctypes.c_ubyte),    # power source
+            ctypes.POINTER(ctypes.c_ubyte),    # remote wakeup
+            ctypes.POINTER(ctypes.c_ushort)    # current load
+        ]
+        self.dll.Mcp2210_GetUsbKeyParams.restype = ctypes.c_int
+        self.dll.Mcp2210_SetUsbKeyParams.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_ushort, ctypes.c_ushort,
+            ctypes.c_ubyte, ctypes.c_ubyte, ctypes.c_ushort
+        ]
+        self.dll.Mcp2210_SetUsbKeyParams.restype = ctypes.c_int
 
         ################################################################################################################
         #Временные настройки закончились
@@ -261,6 +287,81 @@ class MCP2210:
             raise RuntimeError(f"Ошибка при получении серийного номера. Код ошибки: {result}")
 
         return serial_str.value
+
+    # ------------------------------------------------------------------ #
+    # USB string descriptors (NVRAM): manufacturer / product strings.    #
+    # Max length is 29 UTF-16 chars (MCP2210_DESCRIPTOR_STR_MAX_LEN).     #
+    # ------------------------------------------------------------------ #
+    DESCRIPTOR_STR_MAX_LEN = 29
+
+    def get_manufacturer_string(self, handle):
+        """Read the manufacturer string descriptor from NVRAM."""
+        buf = ctypes.create_unicode_buffer(self.DESCRIPTOR_STR_MAX_LEN + 1)
+        result = self.dll.Mcp2210_GetManufacturerString(handle, buf)
+        if result < 0:
+            raise RuntimeError(f"GetManufacturerString failed: {self.describe_mcp2210_error(result)}")
+        return buf.value
+
+    def set_manufacturer_string(self, handle, text):
+        """Write the manufacturer string descriptor to NVRAM (persists)."""
+        if len(text) > self.DESCRIPTOR_STR_MAX_LEN:
+            raise ValueError(f"String too long ({len(text)} > {self.DESCRIPTOR_STR_MAX_LEN}).")
+        buf = ctypes.create_unicode_buffer(text, self.DESCRIPTOR_STR_MAX_LEN + 1)
+        result = self.dll.Mcp2210_SetManufacturerString(handle, buf)
+        if result < 0:
+            raise RuntimeError(f"SetManufacturerString failed: {self.describe_mcp2210_error(result)}")
+        return result
+
+    def get_product_string(self, handle):
+        """Read the product string descriptor from NVRAM."""
+        buf = ctypes.create_unicode_buffer(self.DESCRIPTOR_STR_MAX_LEN + 1)
+        result = self.dll.Mcp2210_GetProductString(handle, buf)
+        if result < 0:
+            raise RuntimeError(f"GetProductString failed: {self.describe_mcp2210_error(result)}")
+        return buf.value
+
+    def set_product_string(self, handle, text):
+        """Write the product string descriptor to NVRAM (persists)."""
+        if len(text) > self.DESCRIPTOR_STR_MAX_LEN:
+            raise ValueError(f"String too long ({len(text)} > {self.DESCRIPTOR_STR_MAX_LEN}).")
+        buf = ctypes.create_unicode_buffer(text, self.DESCRIPTOR_STR_MAX_LEN + 1)
+        result = self.dll.Mcp2210_SetProductString(handle, buf)
+        if result < 0:
+            raise RuntimeError(f"SetProductString failed: {self.describe_mcp2210_error(result)}")
+        return result
+
+    def get_usb_key_params(self, handle):
+        """Read USB key params (VID/PID/power source/remote wakeup/current) from NVRAM."""
+        vid = ctypes.c_ushort()
+        pid = ctypes.c_ushort()
+        pwr_src = ctypes.c_ubyte()
+        rmt_wkup = ctypes.c_ubyte()
+        current_ld = ctypes.c_ushort()
+        result = self.dll.Mcp2210_GetUsbKeyParams(
+            handle, ctypes.byref(vid), ctypes.byref(pid),
+            ctypes.byref(pwr_src), ctypes.byref(rmt_wkup), ctypes.byref(current_ld)
+        )
+        if result < 0:
+            raise RuntimeError(f"GetUsbKeyParams failed: {self.describe_mcp2210_error(result)}")
+        return {
+            "vid": vid.value,
+            "pid": pid.value,
+            "power_source": pwr_src.value,
+            "remote_wakeup": rmt_wkup.value,
+            "current_load": current_ld.value,
+        }
+
+    def set_usb_key_params(self, handle, vid, pid, power_source, remote_wakeup, current_load):
+        """Write USB key params to NVRAM (persists). Changing VID/PID changes how the
+        device enumerates — handle with care."""
+        result = self.dll.Mcp2210_SetUsbKeyParams(
+            handle, ctypes.c_ushort(vid), ctypes.c_ushort(pid),
+            ctypes.c_ubyte(power_source), ctypes.c_ubyte(remote_wakeup),
+            ctypes.c_ushort(current_load)
+        )
+        if result < 0:
+            raise RuntimeError(f"SetUsbKeyParams failed: {self.describe_mcp2210_error(result)}")
+        return result
 
     def open_device_by_index(self, vid=0x4D8, pid=0xDE, index=0):
         """
