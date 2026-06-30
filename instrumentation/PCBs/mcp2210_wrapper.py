@@ -10,36 +10,36 @@ _DEFAULT_DLL_PATH = os.path.join(os.path.dirname(__file__), "MCP2210", "mcp2210_
 class MCP2210:
     def __init__(self, dll_path=None):
         """
-        Инициализация и загрузка DLL.
+        Initialize and load the DLL.
         """
         if dll_path is None:
             dll_path = _DEFAULT_DLL_PATH
         self.dll = ctypes.WinDLL(dll_path)
         version = self.get_library_version()
-        print("Версия dll: " + str(version))
+        print("DLL version: " + str(version))
         self._setup_functions()
 
     def _setup_functions(self):
         """
-        Настройка функций DLL.
+        Set up the DLL function signatures.
         """
         self.dll.Mcp2210_SetGpioPinVal.argtypes = [
-            ctypes.c_void_p,        # Указатель на handle устройства
-            ctypes.c_uint,          # Значение GPIO
-            ctypes.POINTER(ctypes.c_uint)  # Указатель для возвращаемого значения GPIO
+            ctypes.c_void_p,        # Pointer to the device handle
+            ctypes.c_uint,          # GPIO value
+            ctypes.POINTER(ctypes.c_uint)  # Pointer for the returned GPIO value
         ]
-        self.dll.Mcp2210_SetGpioPinVal.restype = ctypes.c_int  # Код результата
+        self.dll.Mcp2210_SetGpioPinVal.restype = ctypes.c_int  # Result code
 
 
-        # Настройка Mcp2210_GetConnectedDevCount
+        # Configure Mcp2210_GetConnectedDevCount
         self.dll.Mcp2210_GetConnectedDevCount.argtypes = [ctypes.c_ushort, ctypes.c_ushort]
         self.dll.Mcp2210_GetConnectedDevCount.restype = ctypes.c_int
 
-        # Настройка Mcp2210_GetSerialNumber
+        # Configure Mcp2210_GetSerialNumber
         self.dll.Mcp2210_GetSerialNumber.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
         self.dll.Mcp2210_GetSerialNumber.restype = ctypes.c_int
 
-        # Настройка Mcp2210_OpenByIndex
+        # Configure Mcp2210_OpenByIndex
         self.dll.Mcp2210_OpenByIndex.argtypes = [
             ctypes.c_ushort,  # vid
             ctypes.c_ushort,  # pid
@@ -49,58 +49,58 @@ class MCP2210:
         ]
         self.dll.Mcp2210_OpenByIndex.restype = ctypes.c_void_p
 
-        # Настройка Mcp2210_Close
-        self.dll.Mcp2210_Close.argtypes = [ctypes.c_void_p]  # Принимает handle
-        self.dll.Mcp2210_Close.restype = ctypes.c_int        # Возвращает int
+        # Configure Mcp2210_Close
+        self.dll.Mcp2210_Close.argtypes = [ctypes.c_void_p]  # Takes handle
+        self.dll.Mcp2210_Close.restype = ctypes.c_int        # Returns int
 
-        # Настройка Mcp2210_OpenBySN
+        # Configure Mcp2210_OpenBySN
         self.dll.Mcp2210_OpenBySN.argtypes = [
             ctypes.c_ushort,        # vid
             ctypes.c_ushort,        # pid
             ctypes.c_wchar_p,       # serialNo
             ctypes.c_wchar_p        # devPath
         ]
-        self.dll.Mcp2210_OpenBySN.restype = ctypes.c_void_p  # Возвращает дескриптор устройства (IntPtr в C#)
+        self.dll.Mcp2210_OpenBySN.restype = ctypes.c_void_p  # Returns the device handle (IntPtr in C#)
 
-        # Настройка M_Mcp2210_GetGpioPinDir
+        # Configure Mcp2210_GetGpioPinDir
         self.dll.Mcp2210_GetGpioPinDir.argtypes = [
             ctypes.c_void_p,                # handle
             ctypes.POINTER(ctypes.c_uint)  # pgpioDir
         ]
-        self.dll.Mcp2210_GetGpioPinDir.restype = ctypes.c_int  # Возвращает код результата
+        self.dll.Mcp2210_GetGpioPinDir.restype = ctypes.c_int  # Returns result code
 
-        # Настройка Mcp2210_SetGpioPinDir
+        # Configure Mcp2210_SetGpioPinDir
         self.dll.Mcp2210_SetGpioPinDir.argtypes = [
             ctypes.c_void_p,  # handle
             ctypes.c_uint     # gpioDir
         ]
-        self.dll.Mcp2210_SetGpioPinDir.restype = ctypes.c_int  # Возвращает код результата
+        self.dll.Mcp2210_SetGpioPinDir.restype = ctypes.c_int  # Returns result code
 
-        # Настройка Mcp2210_GetGpioPinVal
+        # Configure Mcp2210_GetGpioPinVal
         self.dll.Mcp2210_GetGpioPinVal.argtypes = [
             ctypes.c_void_p,  # handle
             ctypes.POINTER(ctypes.c_uint)  # pGPIOVal
         ]
-        self.dll.Mcp2210_GetGpioPinVal.restype = ctypes.c_int  # Возвращает код результата
+        self.dll.Mcp2210_GetGpioPinVal.restype = ctypes.c_int  # Returns result code
 
-        # Настройка Mcp2210_SetGpioConfig
+        # Configure Mcp2210_SetGpioConfig
         self.dll.Mcp2210_SetGpioConfig.argtypes = [
             ctypes.c_void_p,  # handle
             ctypes.c_ubyte,  # cfgSelector
-            ctypes.POINTER(ctypes.c_ubyte),  # pGpioPinDes (указатель на массив)
+            ctypes.POINTER(ctypes.c_ubyte),  # pGpioPinDes (pointer to array)
             ctypes.c_uint,  # dfltGpioOutput
             ctypes.c_uint,  # dfltGpioDir
             ctypes.c_ubyte,  # rmtWkupEn
             ctypes.c_ubyte,  # intPinMd
             ctypes.c_ubyte  # spiBusRelEn
         ]
-        self.dll.Mcp2210_SetGpioConfig.restype = ctypes.c_int  # Возвращает код результата
+        self.dll.Mcp2210_SetGpioConfig.restype = ctypes.c_int  # Returns result code
 
-        # Настройка Mcp2210_Reset
+        # Configure Mcp2210_Reset
         self.dll.Mcp2210_Reset.argtypes = [ctypes.c_void_p]  # handle
-        self.dll.Mcp2210_Reset.restype = ctypes.c_int  # Возвращает код результата
+        self.dll.Mcp2210_Reset.restype = ctypes.c_int  # Returns result code
 
-        # Настройка Mcp2210_GetGpioConfig
+        # Configure Mcp2210_GetGpioConfig
         self.dll.Mcp2210_GetGpioConfig.argtypes = [
             ctypes.c_void_p,                        # void* handle
             ctypes.c_ubyte,                         # unsigned char cfgSelector
@@ -114,7 +114,7 @@ class MCP2210:
         self.dll.Mcp2210_GetGpioConfig.restype = ctypes.c_int  # Return type is int
 
         ################################################################################################################
-        #Временные настройки начались
+        # Temporary settings start
         # Set up the function signature
         self.dll.Mcp2210_GetGpioConfig.argtypes = [
             ctypes.c_void_p,                        # void* handle
@@ -193,61 +193,61 @@ class MCP2210:
         self.dll.Mcp2210_SetUsbKeyParams.restype = ctypes.c_int
 
         ################################################################################################################
-        #Временные настройки закончились
+        # Temporary settings end
 
     def get_library_version(self):
         """
-        Получение версии библиотеки.
+        Get the library version.
         """
         buffer = ctypes.create_unicode_buffer(64)
         result = self.dll.Mcp2210_GetLibraryVersion(buffer)
         if result < 0:
-            raise RuntimeError(f"Ошибка при получении версии DLL. Код ошибки: {result}")
+            raise RuntimeError(f"Error getting the DLL version. Error code: {result}")
         return buffer.value
 
     def get_connected_device_count(self, vid=0x4D8, pid=0xDE):
         """
-        Получает количество подключённых устройств MCP2210 по VID и PID.
+        Get the number of connected MCP2210 devices by VID and PID.
 
         Args:
-            vid (int): Vendor ID (например, 0x4D8 для Microchip).
-            pid (int): Product ID (например, 0xDE для MCP2210).
+            vid (int): Vendor ID (e.g., 0x4D8 for Microchip).
+            pid (int): Product ID (e.g., 0xDE for MCP2210).
 
         Returns:
-            int: Количество подключённых устройств.
+            int: Number of connected devices.
 
         Raises:
-            RuntimeError: Если произошла ошибка при вызове функции.
+            RuntimeError: If the function call fails.
         """
 
-        # Вызов функции DLL
+        # Call the DLL function
         device_count = self.dll.Mcp2210_GetConnectedDevCount(vid, pid)
 
-        # Проверка результата
+        # Check the result
         if device_count < 0:
-            raise RuntimeError(f"Ошибка при вызове Mcp2210_GetConnectedDevCount. Код ошибки: {device_count}")
+            raise RuntimeError(f"Error calling Mcp2210_GetConnectedDevCount. Error code: {device_count}")
 
         return device_count
 
     def open_device_by_sn(self, serial_no, vid=0x4D8, pid=0xDE):
         """
-        Открытие устройства MCP2210 по серийному номеру.
+        Open an MCP2210 device by serial number.
 
         Args:
-            vid (int): Vendor ID устройства.
-            pid (int): Product ID устройства.
-            serial_no (str): Серийный номер устройства.
+            vid (int): Vendor ID of the device.
+            pid (int): Product ID of the device.
+            serial_no (str): Serial number of the device.
 
         Returns:
-            tuple: Дескриптор устройства (handle) и путь устройства (str).
+            tuple: Device handle and device path (str).
 
         Raises:
-            RuntimeError: Если не удалось открыть устройство.
+            RuntimeError: If the device could not be opened.
         """
-        # Буфер для пути устройства
-        dev_path_buffer = ctypes.create_unicode_buffer(256)  # Максимальная длина пути — 256 символов
+        # Buffer for the device path
+        dev_path_buffer = ctypes.create_unicode_buffer(256)  # Maximum path length is 256 characters
 
-        # Вызов функции DLL
+        # Call the DLL function
         handle = self.dll.Mcp2210_OpenBySN(
             ctypes.c_ushort(vid),
             ctypes.c_ushort(pid),
@@ -255,36 +255,36 @@ class MCP2210:
             dev_path_buffer
         )
 
-        # Проверка результата
+        # Check the result
         if handle is None or handle == ctypes.c_void_p(-1).value:
-            error_code = self.dll.Mcp2210_GetLastError()  # Получаем последний код ошибки
-            raise RuntimeError(f"Ошибка при открытии устройства. Код ошибки: {error_code}")
+            error_code = self.dll.Mcp2210_GetLastError()  # Get the last error code
+            raise RuntimeError(f"Error opening the device. Error code: {error_code}")
 
-        # Возвращаем дескриптор и путь устройства
+        # Return the device handle and path
         return handle
 
     def get_serial_number(self, handle):
         """
-        Получение серийного номера устройства MCP2210.
+        Get the serial number of an MCP2210 device.
 
         Args:
-            handle (ctypes.c_void_p): Дескриптор устройства.
+            handle (ctypes.c_void_p): Device handle.
 
         Returns:
-            str: Серийный номер устройства.
+            str: Device serial number.
 
         Raises:
-            RuntimeError: Если функция возвращает отрицательный код.
+            RuntimeError: If the function returns a negative code.
         """
-        # Создание буфера для серийного номера
-        serial_str = ctypes.create_unicode_buffer(64)  # Буфер для строки до 64 символов
+        # Create a buffer for the serial number
+        serial_str = ctypes.create_unicode_buffer(64)  # Buffer for a string up to 64 characters
 
-        # Вызов функции DLL
+        # Call the DLL function
         result = self.dll.Mcp2210_GetSerialNumber(handle, serial_str)
 
-        # Проверка результата
+        # Check the result
         if result < 0:
-            raise RuntimeError(f"Ошибка при получении серийного номера. Код ошибки: {result}")
+            raise RuntimeError(f"Error getting the serial number. Error code: {result}")
 
         return serial_str.value
 
@@ -365,24 +365,24 @@ class MCP2210:
 
     def open_device_by_index(self, vid=0x4D8, pid=0xDE, index=0):
         """
-        Открытие устройства MCP2210 по индексу.
+        Open an MCP2210 device by index.
 
         Args:
-            vid: VID устройства
-            pid: PID устройства
-            index (int): Индекс устройства среди подключённых.
+            vid: VID of the device
+            pid: PID of the device
+            index (int): Index of the device among the connected ones.
 
         Returns:
-            tuple: Дескриптор устройства (handle) и путь устройства (str).
+            tuple: Device handle and device path (str).
 
         Raises:
-            RuntimeError: Если не удалось открыть устройство.
+            RuntimeError: If the device could not be opened.
         """
-        # Буфер для пути устройства
-        dev_path_buffer_size = ctypes.c_ulong(256)  # Размер пути устройства
-        dev_path_buffer = ctypes.create_unicode_buffer(dev_path_buffer_size.value)  # Буфер для строки
+        # Buffer for the device path
+        dev_path_buffer_size = ctypes.c_ulong(256)  # Device path size
+        dev_path_buffer = ctypes.create_unicode_buffer(dev_path_buffer_size.value)  # Buffer for the string
 
-        # Вызов функции DLL
+        # Call the DLL function
         handle = self.dll.Mcp2210_OpenByIndex(
             ctypes.c_ushort(vid),
             ctypes.c_ushort(pid),
@@ -391,55 +391,55 @@ class MCP2210:
             ctypes.byref(dev_path_buffer_size)
         )
 
-        # Проверка результата
+        # Check the result
         if handle is None or handle == ctypes.c_void_p(-1).value:
-            error_code = self.dll.Mcp2210_GetLastError()  # Получаем последний код ошибки
-            raise RuntimeError(f"Ошибка при открытии устройства. Код ошибки: {error_code}")
+            error_code = self.dll.Mcp2210_GetLastError()  # Get the last error code
+            raise RuntimeError(f"Error opening the device. Error code: {error_code}")
 
-        # Возвращаем дескриптор устройства и путь
+        # Return the device handle and path
         return handle
 
     def close_device(self, handle):
         """
-        Закрытие соединения с устройством MCP2210.
+        Close the connection to an MCP2210 device.
 
         Args:
-            handle (ctypes.c_void_p): Дескриптор устройства, полученный при открытии.
+            handle (ctypes.c_void_p): Device handle obtained when opening.
 
         Returns:
             None
 
         Raises:
-            RuntimeError: Если не удалось закрыть соединение.
+            RuntimeError: If the connection could not be closed.
         """
         result = self.dll.Mcp2210_Close(handle)
         if result != 0:
-            raise RuntimeError(f"Ошибка при закрытии устройства. Код ошибки: {result}")
+            raise RuntimeError(f"Error closing the device. Error code: {result}")
 
     def get_gpio_pin_dir(self, handle):
         """
-        Получение направления GPIO пинов устройства.
+        Get the GPIO pin direction of the device.
 
         Args:
-            handle (ctypes.c_void_p): Дескриптор устройства.
+            handle (ctypes.c_void_p): Device handle.
 
         Returns:
-            list: Список из 9 значений (0 - вход, 1 - выход) для каждого GPIO.
+            list: List of 9 values (0 - input, 1 - output) for each GPIO.
 
         Raises:
-            RuntimeError: Если функция возвращает ошибку.
+            RuntimeError: If the function returns an error.
         """
-        # Переменная для хранения результата (направления пинов)
+        # Variable to hold the result (pin directions)
         gpio_dir = ctypes.c_uint()
 
-        # Вызов функции DLL
+        # Call the DLL function
         result = self.dll.Mcp2210_GetGpioPinDir(handle, ctypes.byref(gpio_dir))
 
-        # Проверка результата
+        # Check the result
         if result != 0:
-            raise RuntimeError(f"Ошибка при получении направления GPIO пинов. Код ошибки: {result}")
+            raise RuntimeError(f"Error getting the GPIO pin direction. Error code: {result}")
 
-        # Преобразуем битовое значение в список направлений
+        # Convert the bit value into a list of directions
         gpio_directions = [(gpio_dir.value >> i) & 1 for i in range(9)]
 
         return gpio_directions
@@ -519,7 +519,7 @@ class MCP2210:
             "int_pin_md": int_pin_md.value,
             "spi_bus_rel_en": spi_bus_rel_en.value
         }
-        # Преобразование в читаемый формат
+        # Convert into a readable format
 
     def Set_Gpio_Config(self, handle, cfgSelector, pGpioPinDes, dfltGpioOutput, dfltGpioDir, rmtWkupEn, intPinMd,
                               spiBusRelEn):
@@ -568,71 +568,71 @@ class MCP2210:
         except Exception as e:
             print(f"Error calling DLL function: {e}")
             return -1  # E_ERR_UNKOWN_ERROR
-        
+
     def reset_device(self, handle):
         """
-        Сброс устройства MCP2210.
+        Reset the MCP2210 device.
 
         Args:
-            handle (ctypes.c_void_p): Дескриптор устройства.
+            handle (ctypes.c_void_p): Device handle.
 
         Returns:
             None
 
         Raises:
-            RuntimeError: Если сброс устройства завершился с ошибкой.
+            RuntimeError: If the device reset failed.
         """
         if not handle or handle == ctypes.c_void_p(-1).value:
-            raise ValueError("Недействительный дескриптор устройства.")
+            raise ValueError("Invalid device handle.")
 
-        # Вызов функции сброса
+        # Call the reset function
         result = self.dll.Mcp2210_Reset(handle)
 
-        # Проверка результата
+        # Check the result
         if result != 0:
             error_buffer = ctypes.create_unicode_buffer(256)
             self.dll.Mcp2210_GetLastErrorText(error_buffer, 256)
-            raise RuntimeError(f"Ошибка при сбросе устройства. Код ошибки: {result}, Описание: {error_buffer.value}")
+            raise RuntimeError(f"Error resetting the device. Error code: {result}, Description: {error_buffer.value}")
 
-        print("Устройство успешно сброшено.")
+        print("Device reset successfully.")
 
 
     def set_gpio_pin_val(self, handle, gpio_set_val):
         """
-        Обёртка для функции Mcp2210_SetGpioPinVal.
+        Wrapper for the Mcp2210_SetGpioPinVal function.
 
         Args:
-            handle (ctypes.c_void_p): Указатель на устройство.
-            gpio_set_val (int): Новые значения GPIO.
+            handle (ctypes.c_void_p): Pointer to the device.
+            gpio_set_val (int): New GPIO values.
 
         Returns:
-            tuple: (result_code, gpio_pin_val), где:
-                - result_code (int): Код результата (0 - успех, отрицательные - ошибки).
-                - gpio_pin_val (int): Текущее значение GPIO, возвращаемое функцией.
+            tuple: (result_code, gpio_pin_val), where:
+                - result_code (int): Result code (0 - success, negative - errors).
+                - gpio_pin_val (int): Current GPIO value returned by the function.
 
         Raises:
-            ValueError: Если handle равен None.
-            RuntimeError: Если результат вызова отрицательный (ошибка).
+            ValueError: If handle is None.
+            RuntimeError: If the call result is negative (error).
         """
         if handle is None or handle == ctypes.c_void_p(-1).value:
             raise ValueError("Invalid handle provided")
 
-        # Буфер для возвращаемого значения GPIO pin values
+        # Buffer for the returned GPIO pin values
         gpio_pin_val = ctypes.c_uint()
 
-        # Вызов функции DLL
+        # Call the DLL function
         result_code = self.dll.Mcp2210_SetGpioPinVal(
             ctypes.c_void_p(handle),
             ctypes.c_uint(gpio_set_val),
             ctypes.byref(gpio_pin_val)
         )
 
-        # Обработка результата
+        # Handle the result
         if result_code < 0:
             raise RuntimeError(f"Error in Mcp2210_SetGpioPinVal: code {result_code}")
-        
+
         return result_code, gpio_pin_val.value
-        
+
 
     def describe_mcp2210_error(self, error_code):
         """
@@ -679,8 +679,8 @@ class MCP2210:
         return error_descriptions.get(error_code, f"Unknown error (code: {error_code})")
 
         ################################################################################################################
-        #Временные настройки начались
-   
+        # Temporary settings start
+
     def get_gpio_config(self, handle, cfgSelector):
         """
         Retrieves the GPIO configuration of the MCP2210 device.
@@ -762,29 +762,29 @@ class MCP2210:
 
     def get_spi_config(self, handle, cfgSelector):
         """
-        Получение настроек SPI для текущей (VM) конфигурации или конфигурации по умолчанию (NVRAM).
+        Get the SPI settings for the current (VM) configuration or the default (NVRAM) configuration.
 
         Args:
-            handle (ctypes.c_void_p): Дескриптор устройства.
-            cfgSelector (int): Выбор текущей или начальной конфигурации.
-                            Возможные значения:
-                            - MCP2210_VM_CONFIG (текущая конфигурация)
-                            - MCP2210_NVRAM_CONFIG (начальная конфигурация)
+            handle (ctypes.c_void_p): Device handle.
+            cfgSelector (int): Selects the current or startup configuration.
+                            Possible values:
+                            - MCP2210_VM_CONFIG (current configuration)
+                            - MCP2210_NVRAM_CONFIG (startup configuration)
 
         Returns:
-            dict: Словарь, содержащий настройки SPI:
-                - baudRate: Скорость передачи.
-                - idleCsVal: Значение Chip Select в состоянии ожидания.
-                - activeCsVal: Значение Chip Select в активном состоянии.
-                - csToDataDly: Задержка от Chip Select до передачи данных.
-                - dataToCsDly: Задержка от последнего байта до Chip Select.
-                - dataToDataDly: Задержка между байтами.
-                - txferSize: Размер передачи в байтах.
-                - spiMd: Режим SPI.
+            dict: Dictionary containing the SPI settings:
+                - baudRate: Transfer rate.
+                - idleCsVal: Chip Select value when idle.
+                - activeCsVal: Chip Select value when active.
+                - csToDataDly: Delay from Chip Select to data transmission.
+                - dataToCsDly: Delay from the last byte to Chip Select.
+                - dataToDataDly: Delay between bytes.
+                - txferSize: Transfer size in bytes.
+                - spiMd: SPI mode.
         Raises:
-            ValueError: Если вызов функции DLL завершился с ошибкой.
+            ValueError: If the DLL function call fails.
         """
-        # Подготовка выходных переменных
+        # Prepare the output variables
         baudRate = ctypes.c_uint()
         idleCsVal = ctypes.c_uint()
         activeCsVal = ctypes.c_uint()
@@ -794,7 +794,7 @@ class MCP2210:
         txferSize = ctypes.c_uint()
         spiMd = ctypes.c_ubyte()
 
-        # Вызов функции DLL
+        # Call the DLL function
         result = self.dll.Mcp2210_GetSpiConfig(
             ctypes.c_void_p(handle),
             ctypes.c_ubyte(cfgSelector),
@@ -808,11 +808,11 @@ class MCP2210:
             ctypes.byref(spiMd)
         )
 
-        # Проверка результата
+        # Check the result
         if result != 0:
-            raise ValueError(f"Ошибка при получении конфигурации SPI. Код ошибки: {result}")
+            raise ValueError(f"Error getting SPI configuration. Error code: {result}")
 
-        # Возврат данных в виде словаря
+        # Return the data as a dictionary
         return {
             "baudRate": baudRate.value,
             "idleCsVal": idleCsVal.value,
@@ -825,32 +825,32 @@ class MCP2210:
         }
 
     def xfer_spi_data(self, handle, data_tx, baud_rate, transfer_size, cs_mask):
-         
+
         """
-        Обертка для вызова функции Mcp2210_xferSpiData.
+        Wrapper for the Mcp2210_xferSpiData function.
 
         Args:
-            handle (ctypes.c_void_p): Дескриптор устройства MCP2210.
-            data_tx (list[int]): Данные для передачи через SPI.
-            baud_rate (int): Скорость передачи SPI (в Гц). Если 0, используется текущая скорость.
-            transfer_size (int): Количество байт на передачу. Если 0, передача не выполняется, только изменение конфигурации.
-            cs_mask (int): Битовая маска GPIO пинов для Chip Select.
+            handle (ctypes.c_void_p): MCP2210 device handle.
+            data_tx (list[int]): Data to transmit over SPI.
+            baud_rate (int): SPI transfer rate (in Hz). If 0, the current rate is used.
+            transfer_size (int): Number of bytes per transfer. If 0, no transfer is performed, only a configuration change.
+            cs_mask (int): Bit mask of GPIO pins used for Chip Select.
 
         Returns:
-            dict: Результаты SPI передачи:
-                - "data_rx" (list[int]): Принятые данные.
-                - "baud_rate" (int): Принятая скорость передачи SPI.
-                - "transfer_size" (int): Фактический размер передачи.
+            dict: SPI transfer results:
+                - "data_rx" (list[int]): Received data.
+                - "baud_rate" (int): Accepted SPI transfer rate.
+                - "transfer_size" (int): Actual transfer size.
 
         Raises:
-            ValueError: Если вызов функции DLL завершился с ошибкой.
+            ValueError: If the DLL function call fails.
         """
-        # Подготовка данных для передачи
+        # Prepare the data to transmit
         data_tx_buffer = (ctypes.c_ubyte * transfer_size)(*data_tx)
-        data_rx_buffer = (ctypes.c_ubyte * transfer_size)()  # Буфер для приёма данных того же размера
+        data_rx_buffer = (ctypes.c_ubyte * transfer_size)()  # Receive buffer of the same size
         c_baud_rate = ctypes.c_uint(baud_rate)
         c_transfer_size = ctypes.c_uint(transfer_size)
-        # Вызов функции DLL (cs_mask is honored as passed by the caller)
+        # Call the DLL function (cs_mask is honored as passed by the caller)
         result = self.dll.Mcp2210_xferSpiData(
             ctypes.c_void_p(handle),
             data_tx_buffer,
@@ -860,14 +860,14 @@ class MCP2210:
             ctypes.c_uint(cs_mask)
         )
 
-        # Проверка результата
+        # Check the result
         if result != 0:
-            raise ValueError(f"Ошибка SPI передачи. Код ошибки: {result}")
+            raise ValueError(f"SPI transfer error. Error code: {result}")
 
-        # Преобразование данных из буфера приёма в список
+        # Convert the data from the receive buffer into a list
         data_rx = list(data_rx_buffer)
 
-        # Возврат результатов
+        # Return the results
         return {
             "data_rx": data_rx,
             "baud_rate": c_baud_rate.value,
@@ -879,27 +879,27 @@ class MCP2210:
                                 idle_cs_val = 1, active_cs_val= 0, cs_to_data_dly = 0,
                                 data_to_cs_dly = 0, data_to_data_dly = 0, spi_mode = 0):
         """
-        Конфигурирует и выполняет передачу данных по SPI с устройством MCP2210.
+        Configures and performs an SPI data transfer with the MCP2210 device.
 
-        :param handle: Указатель на дескриптор устройства (ctypes void pointer).
-        :param data_tx: Байтовый массив данных для передачи (list or bytes).
-        :param baud_rate: Скорость передачи SPI (int).
-        :param txfer_size: Размер данных для передачи (int).
-        :param csmask: Битовая маска выбора чип-селектов (int).
-        :param idle_cs_val: Значение чип-селекта в состоянии покоя (int).
-        :param active_cs_val: Значение активного чип-селекта (int).
-        :param cs_to_data_dly: Задержка от выбора CS до начала данных (int).
-        :param data_to_cs_dly: Задержка после последнего байта до сброса CS (int).
-        :param data_to_data_dly: Задержка между байтами (int).
-        :param spi_mode: Режим SPI (MCP2210_SPI_MODE0-3).
-        :return: Кортеж (код возврата, полученные данные).
+        :param handle: Pointer to the device handle (ctypes void pointer).
+        :param data_tx: Byte array of data to transmit (list or bytes).
+        :param baud_rate: SPI transfer rate (int).
+        :param txfer_size: Size of the data to transmit (int).
+        :param csmask: Chip-select bit mask (int).
+        :param idle_cs_val: Chip-select value when idle (int).
+        :param active_cs_val: Active chip-select value (int).
+        :param cs_to_data_dly: Delay from CS assertion to data start (int).
+        :param data_to_cs_dly: Delay from the last byte to CS deassertion (int).
+        :param data_to_data_dly: Delay between bytes (int).
+        :param spi_mode: SPI mode (MCP2210_SPI_MODE0-3).
+        :return: Tuple (return code, received data).
         """
 
-        # Преобразование входных данных в ctypes
+        # Convert the input data to ctypes
         pdata_tx = (ctypes.c_ubyte * len(data_tx))(*data_tx)
-        pdata_rx = (ctypes.c_ubyte * len(data_tx))()  # Буфер приема
+        pdata_rx = (ctypes.c_ubyte * len(data_tx))()  # Receive buffer
 
-        # Преобразование переменных для передачи по указателям
+        # Convert variables for passing by pointer
         baud_rate_c = ctypes.c_uint(baud_rate)
         txfer_size_c = ctypes.c_uint(txfer_size)
         idle_cs_val_c = ctypes.c_uint(idle_cs_val)
@@ -909,7 +909,7 @@ class MCP2210:
         data_to_data_dly_c = ctypes.c_uint(data_to_data_dly)
         spi_mode_c = ctypes.c_ubyte(spi_mode)
 
-        # Вызов функции из библиотеки
+        # Call the library function
         ret = self.dll.Mcp2210_xferSpiDataEx(
             handle,
             ctypes.byref(pdata_tx),
@@ -925,7 +925,7 @@ class MCP2210:
             ctypes.byref(spi_mode_c)
         )
 
-        # Преобразование буфера в Python список
+        # Convert the buffer into a Python list
         received_data = list(pdata_rx)
 
         return ret, received_data
@@ -943,24 +943,24 @@ class MCP2210:
         sorted_keys = sorted(gpio_dict.keys(), key=lambda x: int(x[4:]), reverse=True)
         binary_string = ''.join(str(int(gpio_dict[key])) for key in sorted_keys)
         return int(binary_string, 2)
-    
+
     def decode_temperature(self, result):
-        # Объединяем байты
-        raw_data = result['data_rx'] 
+        # Combine the bytes
+        raw_data = result['data_rx']
         raw_data = (raw_data[0] << 8) | raw_data[1]
-        # Отбрасываем младшие 3 бита
+        # Drop the 3 least significant bits
         temperature_raw = raw_data >> 3
-        # Проверяем знак
-        if temperature_raw & 0x1000:  # Если бит 12 установлен
+        # Check the sign
+        if temperature_raw & 0x1000:  # If bit 12 is set
             temperature_raw -= 0x2000
-        # Преобразуем в температуру
+        # Convert to temperature
         return temperature_raw * 0.0625
 
 
-    def set_spi_config(self, handle, cfgSelector, baudRate, idleCsVal, activeCsVal, 
+    def set_spi_config(self, handle, cfgSelector, baudRate, idleCsVal, activeCsVal,
                     csToDataDly, dataToCsDly, dataToDataDly, txferSize, spiMd):
         """
-        Configures SPI settings for MCP2210 for either the current (VM) configuration 
+        Configures SPI settings for MCP2210 for either the current (VM) configuration
         or the default startup (NVRAM) configuration.
 
         Args:
