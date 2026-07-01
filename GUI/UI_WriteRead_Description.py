@@ -82,7 +82,7 @@ class Mcp2210App(tk.Tk):
  
         ttk.Label(
             write_frame,
-            text="Note: writes persist to NVRAM and survive power cycles.",
+            text="Baseband Example: \"Maury Microwave (Manufacturer)\" \n \t \t   \"BB Controller, XXXX, X.X\" (Product)",
             foreground="gray"
         ).grid(row=2, column=0, columnspan=3, sticky="w", padx=5, pady=(2, 8))
  
@@ -154,14 +154,14 @@ class Mcp2210App(tk.Tk):
                 pass
             self.handle = None
  
-        next_index = (self.current_index + 1) % count + 1
+        next_index = (self.current_index + 1) % count 
  
         try:
             self.handle = mcp.open_device_by_index(vid=DEFAULT_VID, pid=DEFAULT_PID, index=next_index)
             self.current_index = next_index
             self.status_var.set("Connected")
             self.status_label.configure(foreground="green")
-            self._log(f"Device opened successfully (MCP2210 {next_index} of {count}).")
+            self._log(f"Device opened successfully (MCP2210 {next_index + 1} of {count}).")
             # Auto-refresh strings on open
             self.on_read_strings()
         except Exception as e:
