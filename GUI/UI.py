@@ -1,9 +1,3 @@
-import os
-import sys
-
-# Make the project root importable so `instrumentation` resolves regardless of cwd.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
 import tkinter as tk
 from tkinter import messagebox, ttk
 from instrumentation.PCBs.mcp2210_wrapper import MCP2210
@@ -11,7 +5,6 @@ from instrumentation.PCBs import constants
 import time
 from collections import deque
 import threading
-from collections import deque
 from instrumentation.PCBs.Switchboard_18GHz import Switchboard_18GHz
 
 mcp = MCP2210()

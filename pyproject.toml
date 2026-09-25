@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mcp2210-wrapper"
+version = "0.1.0"
+description = "ctypes wrapper for the Microchip MCP2210 USB-to-SPI DLL, plus lab instrument helpers"
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib",
+    "pandas",
+    "pyvisa",
+    "scipy",
+]
+
+[tool.setuptools.packages.find]
+include = ["instrumentation*"]
+
+[tool.setuptools.package-data]
+"instrumentation.PCBs" = ["*.dll", "MCP2210/*.dll", "MCP2210/*.h"]

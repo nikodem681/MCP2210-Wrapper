@@ -13,13 +13,9 @@ so the device is left as it was found. USB key params (VID/PID/...) are only
 read here -- changing them would change how the device enumerates.
 
 Run from the project root:  python -m sandbox.test_mcp2210_descriptors
-Or directly:                python sandbox/test_mcp2210_descriptors.py
+Or, after `pip install -e .`:  python sandbox/test_mcp2210_descriptors.py
 """
-import os
 import sys
-
-# Make the project root importable so `instrumentation` resolves regardless of cwd.
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from instrumentation.PCBs.mcp2210_wrapper import MCP2210
 
