@@ -98,6 +98,8 @@ class Switchboard_18GHz:
         print("Initializing MCP23S17SO...")
         self.set_MUX_channel(0)
 
+        # Devices 0-4 only. Device 5 (the mechanical switches) is intentionally
+        # left out of this init; the switches work as is.
         for i in range(0, 5, 1):
             self.init_MCP23S17(i)
 
