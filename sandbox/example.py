@@ -44,15 +44,15 @@ try:
 
     # Default GPIO direction (example: all outputs)
     default_direction = {
-        "GPIO0": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO1": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO2": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO3": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO4": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO5": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO6": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO7": constants.dfltGpioDir.MCP2210_OUPTUT,
-        "GPIO8": constants.dfltGpioDir.MCP2210_OUPTUT
+        "GPIO0": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO1": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO2": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO3": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO4": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO5": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO6": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO7": constants.dfltGpioDir.MCP2210_OUTPUT,
+        "GPIO8": constants.dfltGpioDir.MCP2210_OUTPUT
     }
     # Remote wakeup enabled
     remote_wakeup = constants.rmtWkupEn.MCP2210_REMOTE_WAKEUP_DISABLED
