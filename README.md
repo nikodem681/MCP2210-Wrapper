@@ -67,10 +67,27 @@ Scripts:
 | `python GUI/UI_WriteRead_Description.py` | Reads and writes the manufacturer/product strings in NVRAM; with several MCP2210s plugged in, Connect steps to the next one |
 | `python sandbox/main.py` | Lists connected MCP2210 serial numbers, connects to the first switchboard and resets it |
 | `python sandbox/frequency_response.py` | Generator to analyzer frequency sweep; saves a `.mat` file to `data/` and plots it (`--help` for options) |
-| `python sandbox/example.py` | Temperature sensor readout over SPI with a live plot |
+| `python sandbox/example.py` | Temperature sensor readout over SPI with a live plot, logged to `data/temperature_log.csv` |
+| `python sandbox/Graphic.py [file.mat]` | Plots a saved sweep (default: the newest `.mat` in `data/`) |
 | `python sandbox/test_mcp2210_descriptors.py` | Reads the device descriptors and round-trips the NVRAM strings (writes, then restores the originals) |
 
 Measurement output (`data/`, `*.mat`, `temperature_log.csv`) is not tracked by git.
+
+## Tests
+
+The tests run without hardware. `tests/fake_dll/fake_mcp2210.c` implements the
+MCP2210 DLL API and is compiled against the vendor header, so the ctypes
+signatures, the constants and the switchboard SPI traffic are checked against
+it. Building it needs a C compiler (gcc/clang), so on Windows run the tests in
+WSL or let CI run them; the GUI tests also need Tk and a display.
+
+```
+pip install -e . pytest ruff
+ruff check .
+pytest
+```
+
+GitHub Actions runs the same on every push to `main` and on pull requests.
 
 ## Third-party files
 
