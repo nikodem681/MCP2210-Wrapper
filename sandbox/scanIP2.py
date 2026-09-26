@@ -28,12 +28,10 @@ def scan_network(subnet, port=80, timeout=0.5):
 
     return active_hosts
 
-# Get subnet input from the user
-subnet = input("Enter subnet (e.g., 192.168.1.0/24): ").strip()
+if __name__ == "__main__":
+    subnet = input("Enter subnet (e.g., 192.168.1.0/24): ").strip()
+    active_hosts = scan_network(subnet)
 
-# Scan the network
-active_hosts = scan_network(subnet)
-
-print(f"\nTotal active hosts found: {len(active_hosts)}")
-for ip, hostname in active_hosts:
-    print(f"IP: {ip} | Hostname: {hostname}")
+    print(f"\nTotal active hosts found: {len(active_hosts)}")
+    for ip, hostname in active_hosts:
+        print(f"IP: {ip} | Hostname: {hostname}")

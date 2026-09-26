@@ -1,24 +1,31 @@
-from instrumentation.PCBs.mcp2210_wrapper import MCP2210
-from instrumentation.PCBs import constants
-import time
-import matplotlib.pyplot as plt
-from collections import deque
-import threading
+"""List the connected MCP2210 serial numbers, connect to the first switchboard and reset it."""
+import sys
+
 from instrumentation.PCBs.Switchboard_18GHz import Switchboard_18GHz
 
-mcp = MCP2210()
-quanity = mcp.get_connected_device_count()
 
-Serial_no_list = []
-for i in range (0, quanity, 1):
-    handle = mcp.open_device_by_index(index = i)
-    Serial_no = mcp.get_serial_number(handle)
-    Serial_no_list.append(Serial_no)
-    mcp.close_device(handle)
-print(Serial_no_list)
+def main():
+    swb = Switchboard_18GHz()
+    mcp = swb.mcp
 
-swb = Switchboard_18GHz()
-swb.connect(Serial_no_list[0])
+    serial_numbers = []
+    for i in range(mcp.get_connected_device_count()):
+        handle = mcp.open_device_by_index(index=i)
+        try:
+            serial_numbers.append(mcp.get_serial_number(handle))
+        finally:
+            mcp.close_device(handle)
+    print(serial_numbers)
+    if not serial_numbers:
+        sys.exit("No MCP2210 device found.")
 
-swb.reset_PCB()
-print('The end')
+    swb.connect(serial_numbers[0])
+    try:
+        swb.reset_PCB()
+    finally:
+        swb.CloseDevice()
+    print('The end')
+
+
+if __name__ == "__main__":
+    main()
