@@ -111,6 +111,30 @@ class Mcp2210App(tk.Tk):
             return False
         return True
 
+    def _close_handle(self):
+        if self.handle is not None:
+            try:
+                self.mcp.close_device(self.handle)
+            except Exception:
+                pass
+        self.handle = None
+        self.current_index = -1
+        self.status_var.set("Not connected")
+        self.status_label.configure(foreground="red")
+
+    def _device_alive(self):
+        """True if the open handle still answers; False after the device was unplugged."""
+        try:
+            self.mcp.get_serial_number(self.handle)
+            return True
+        except Exception:
+            return False
+
+    def _check_connection_after_error(self):
+        if self.handle is not None and not self._device_alive():
+            self._close_handle()
+            self._log("Device is not responding; disconnected.")
+
     # ------------------------------------------------------------------ #
     # Button callbacks
     # ------------------------------------------------------------------ #
@@ -127,51 +151,46 @@ class Mcp2210App(tk.Tk):
             return
 
         if count <= 0:
-            self.status_var.set("Not connected")
-            self.status_label.configure(foreground="red")
+            self._close_handle()
             messagebox.showerror("No device", "No MCP2210 device found.")
             self._log("No MCP2210 device found.")
             return
 
-        # If only one device is plugged in and we're already connected to it, just notify.
+        # If only one device is plugged in and we're still connected to it, just notify.
         if count == 1 and self.handle is not None:
-            messagebox.showinfo("Already connected", "The MCP is already connected")
-            self._log("Connect pressed: only one MCP present and it is already connected.")
-            return
+            if self._device_alive():
+                messagebox.showinfo("Already connected", "The MCP is already connected")
+                self._log("Connect pressed: only one MCP present and it is already connected.")
+                return
+            self._log("Previously opened device is gone; reconnecting.")
 
         # Close the currently open device (if any) before opening the next one.
-        if self.handle is not None:
-            try:
-                self.mcp.close_device(self.handle)
-            except Exception:
-                pass
-            self.handle = None
-
         next_index = (self.current_index + 1) % count
+        self._close_handle()
 
         try:
             self.handle = mcp.open_device_by_index(vid=DEFAULT_VID, pid=DEFAULT_PID, index=next_index)
             self.current_index = next_index
-            self.status_var.set("Connected")
+            serial = mcp.get_serial_number(self.handle)
+            self.status_var.set(f"Connected: SN {serial} ({next_index + 1} of {count})")
             self.status_label.configure(foreground="green")
-            self._log(f"Device opened successfully (MCP2210 {next_index + 1} of {count}).")
+            self._log(f"Device opened successfully (MCP2210 {next_index + 1} of {count}, SN {serial}).")
             # Auto-refresh strings on open
             self.on_read_strings()
         except Exception as e:
-            self.handle = None
-            self.current_index = -1
-            self.status_var.set("Not connected")
-            self.status_label.configure(foreground="red")
+            self._close_handle()
             messagebox.showerror("Error opening device", str(e))
             self._log(f"Error opening device: {e}")
 
     def on_read_strings(self):
         if not self._ensure_open_device():
             return
+        failed = False
         try:
             mfg = self.mcp.get_manufacturer_string(self.handle)
             self.mfg_read_var.set(mfg if mfg else "(empty)")
         except Exception as e:
+            failed = True
             self.mfg_read_var.set("Error")
             self._log(f"Error reading manufacturer string: {e}")
 
@@ -179,47 +198,47 @@ class Mcp2210App(tk.Tk):
             prod = self.mcp.get_product_string(self.handle)
             self.prod_read_var.set(prod if prod else "(empty)")
         except Exception as e:
+            failed = True
             self.prod_read_var.set("Error")
             self._log(f"Error reading product string: {e}")
 
-    def on_write_manufacturer(self):
+        if failed:
+            self._check_connection_after_error()
+
+    def _write_string(self, label, text):
         if not self._ensure_open_device():
             return
-        text = self.mfg_write_var.get()
         if not text:
-            messagebox.showwarning("Empty value", "Please enter a manufacturer string to write.")
+            messagebox.showwarning("Empty value", f"Please enter a {label} string to write.")
+            return
+        if len(text) > MCP2210.DESCRIPTOR_STR_MAX_LEN:
+            messagebox.showwarning(
+                "Too long", f"The {label} string can be at most {MCP2210.DESCRIPTOR_STR_MAX_LEN} characters.")
+            return
+        if not messagebox.askyesno(
+                "Write to NVRAM",
+                f"Write {label} string '{text}' to the device?\n\n"
+                "It is stored in NVRAM and changes how the device shows up over USB."):
             return
         try:
-            self.mcp.set_manufacturer_string(self.handle, text)
-            self._log(f"Manufacturer string written: '{text}'")
+            getattr(self.mcp, f"set_{label}_string")(self.handle, text)
+            self._log(f"{label.capitalize()} string written: '{text}'")
             self.on_read_strings()
         except Exception as e:
             messagebox.showerror("Write failed", str(e))
-            self._log(f"Error writing manufacturer string: {e}")
+            self._log(f"Error writing {label} string: {e}")
+            self._check_connection_after_error()
+
+    def on_write_manufacturer(self):
+        self._write_string("manufacturer", self.mfg_write_var.get())
 
     def on_write_product(self):
-        if not self._ensure_open_device():
-            return
-        text = self.prod_write_var.get()
-        if not text:
-            messagebox.showwarning("Empty value", "Please enter a product string to write.")
-            return
-        try:
-            self.mcp.set_product_string(self.handle, text)
-            self._log(f"Product string written: '{text}'")
-            self.on_read_strings()
-        except Exception as e:
-            messagebox.showerror("Write failed", str(e))
-            self._log(f"Error writing product string: {e}")
+        self._write_string("product", self.prod_write_var.get())
 
     def on_close(self):
-        if self.mcp is not None and self.handle is not None:
-            try:
-                self.mcp.close_device(self.handle)
-            except Exception:
-                pass
+        if self.mcp is not None:
+            self._close_handle()
         self.destroy()
-
 
 if __name__ == "__main__":
     app = Mcp2210App()

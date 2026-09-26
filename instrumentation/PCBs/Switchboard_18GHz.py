@@ -17,7 +17,11 @@ class Switchboard_18GHz:
         if self.handle is not None:
             self.CloseDevice()
         self.serial_no = serial_no
-        self._setup_PCB(self.serial_no)
+        try:
+            self._setup_PCB(self.serial_no)
+        except Exception:
+            self.CloseDevice()  # don't leave a half-initialized board looking connected
+            raise
 
     @property
     def is_connected(self):
