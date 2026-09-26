@@ -93,4 +93,9 @@ GitHub Actions runs the same on every push to `main` and on pull requests.
 
 `instrumentation/PCBs/MCP2210/` and `MCP2210 DLL User Guide.pdf` are from
 Microchip's MCP2210 DLL package. `libusb-1.0.dll` is from the
-[libusb](https://libusb.info) project.
+[libusb](https://libusb.info) project. They keep their own license terms and
+are not covered by this project's license.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
