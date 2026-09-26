@@ -5,7 +5,7 @@ Python tools for lab automation around the Microchip MCP2210 USB-to-SPI bridge:
 - a `ctypes` wrapper for Microchip's MCP2210 DLL (device discovery, GPIO, SPI, NVRAM settings);
 - a driver for the 18 GHz switchboard PCB (MCP23S17 GPIO expanders, mechanical switches, AD5726 DACs);
 - SCPI helpers for the R&S FSV40-N spectrum analyzer and an Anapico signal generator;
-- a Tkinter GUI for the switchboard.
+- Tkinter GUIs for the switchboard and for editing the MCP2210 USB strings.
 
 **Windows only.** The wrapper loads the vendor DLL through `ctypes.WinDLL`.
 
@@ -19,6 +19,7 @@ Python tools for lab automation around the Microchip MCP2210 USB-to-SPI bridge:
 | `instrumentation/PCBs/MCP2210/` | Microchip MCP2210 DLL (x64/x86) and header |
 | `instrumentation/SA/FSV40N.py` | Spectrum analyzer and signal generator SCPI helpers |
 | `GUI/UI.py` | Switchboard control GUI |
+| `GUI/UI_WriteRead_Description.py` | MCP2210 configurator: USB manufacturer/product strings |
 | `sandbox/` | Measurement and bring-up scripts |
 
 ## Setup
@@ -63,6 +64,7 @@ Scripts:
 | Command | What it does |
 | --- | --- |
 | `python GUI/UI.py` | Switchboard GUI: connect by serial number, toggle switches, set DAC outputs |
+| `python GUI/UI_WriteRead_Description.py` | Reads and writes the manufacturer/product strings in NVRAM; with several MCP2210s plugged in, Connect steps to the next one |
 | `python sandbox/main.py` | Lists connected MCP2210 serial numbers, connects to the first switchboard and resets it |
 | `python sandbox/frequency_response.py` | Generator to analyzer frequency sweep; saves a `.mat` file to `data/` and plots it (`--help` for options) |
 | `python sandbox/example.py` | Temperature sensor readout over SPI with a live plot |
