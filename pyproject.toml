@@ -19,3 +19,7 @@ include = ["instrumentation*"]
 
 [tool.setuptools.package-data]
 "instrumentation.PCBs" = ["*.dll", "MCP2210/*.dll", "MCP2210/*.h"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
