@@ -3,6 +3,12 @@ import time
 import pyvisa
 
 def SA_init(IP_address: str):
+    """
+    Open the spectrum analyzer over LAN (VISA TCPIP) and print its *IDN?.
+
+    :param IP_address: analyzer IP address
+    :return: the open pyvisa resource, or None if the connection failed
+    """
     try:
         rm = pyvisa.ResourceManager()
         instr = rm.open_resource(f"TCPIP::{IP_address}::INSTR")
@@ -165,17 +171,17 @@ def convert_to_Hz(value: float, unit: str) -> float:
 
 def set_signal_generator(instrument, channel, freq, power):
     """
-    Устанавливает частоту и мощность на указанном канале генератора сигналов.
-    
-    :param instrument: SCPI-сессия или объект управления устройством
-    :param channel: Номер канала (1 или 2)
-    :param freq: Частота в Гц (float или int)
-    :param power: Мощность в дБм (float или int)
-    """
-    instrument.write(f"SOUR{channel}:FREQ {freq}")  # Установка частоты
-    instrument.write(f"SOUR{channel}:POW {power}")  # Установка мощности
+    Set the frequency and power of one signal generator channel.
 
-def SA_set_marker_max(instr) -> float:
+    :param instrument: open pyvisa resource of the generator
+    :param channel: channel number (1 or 2)
+    :param freq: frequency in Hz
+    :param power: power in dBm
+    """
+    instrument.write(f"SOUR{channel}:FREQ {freq}")
+    instrument.write(f"SOUR{channel}:POW {power}")
+
+def SA_set_marker_max(instr):
     """
     Sets marker 1 to the maximum peak and retrieves its frequency and amplitude.
 
@@ -183,12 +189,12 @@ def SA_set_marker_max(instr) -> float:
     :return: A tuple (frequency in Hz, amplitude in dBm) or None if an error occurs
     """
     try:
-        instr.write(":CALC:MARK1:MAX")  # Установить маркер 1 на максимум
+        instr.write(":CALC:MARK1:MAX")
         time.sleep(0.1)
-        freq = instr.query(":CALC:MARK1:X?")  # Получить частоту маркера
-        ampl = instr.query(":CALC:MARK1:Y?")  # Получить амплитуду маркера
+        freq = instr.query(":CALC:MARK1:X?")
+        ampl = instr.query(":CALC:MARK1:Y?")
 
-        return float(freq.strip()), float(ampl.strip())  # Вернуть данные маркера
+        return float(freq.strip()), float(ampl.strip())
 
     except Exception as e:
         print(f"Error setting marker to max: {e}")
@@ -196,122 +202,125 @@ def SA_set_marker_max(instr) -> float:
 
 def SA_is_sweep_complete(instr) -> bool:
     """
-    Проверяет, завершена ли развертка анализатора спектра.
+    Check whether the analyzer sweep has finished.
 
-    :param instr: Объект pyvisa.resources.Resource (спектроанализатор)
-    :return: True, если развертка завершена, False, если нет
+    :param instr: open pyvisa resource of the spectrum analyzer
+    :return: True if the sweep is complete, False otherwise
     """
     try:
-        status = int(instr.query(":STAT:OPER:COND?"))  # Запрос состояния развертки
-        return status == 0  # Если статус 0 — развертка завершена
+        status = int(instr.query(":STAT:OPER:COND?"))
+        return status == 0  # 0: no operation running
 
     except Exception as e:
-        print(f"Ошибка при проверке завершения развертки: {e}")
+        print(f"Error checking sweep status: {e}")
         return False
-    
+
 def set_sweep_points(instr, points):
     """
-    Устанавливает количество точек в развертке анализатора спектра.
+    Set the number of sweep points.
 
-    :param instr: Объект pyvisa.resources.Resource (спектроанализатор)
-    :param points: Количество точек (обычно от 101 до 10001)
+    :param instr: open pyvisa resource of the spectrum analyzer
+    :param points: number of points (typically 101 to 10001)
     """
     instr.write(f"SWEep:POINts {points}")
 
 def enable_manual_sweep(instr):
     """
-    Переключает анализатор спектра в ручной режим развертки.
+    Switch the analyzer to single (manually triggered) sweeps.
     """
-    instr.write("INITiate:CONTinuous OFF")  # Отключить авторазвертку
+    instr.write("INITiate:CONTinuous OFF")
 
 def start_manual_sweep(instr):
     """
-    Запускает развертку вручную (однократный запуск).
+    Trigger one sweep.
     """
-    instr.write("INITiate:IMMediate")  # Запустить развертку
+    instr.write("INITiate:IMMediate")
 
 def single_sweep(instr):
     """
-    Выполняет однократную развертку на анализаторе спектра и ждет её завершения.
-    
-    :param instr: Объект pyvisa.resources.Resource (спектроанализатор)
-    """
-    instr.write("INITiate:CONTinuous OFF")  # Отключить авторазвертку
-    instr.write("INITiate:IMMediate")       # Запустить развертку один раз
+    Run one sweep and wait for it to finish.
 
-    # Ждем, пока развертка не завершится
+    :param instr: open pyvisa resource of the spectrum analyzer
+    """
+    instr.write("INITiate:CONTinuous OFF")
+    instr.write("INITiate:IMMediate")
+
     while True:
         status = int(instr.query(":STATus:OPERation:CONDition?").strip())
-        if status == 0:  # Развертка завершена
+        if status == 0:  # sweep finished
             break
-        time.sleep(0.1)  # Ждать 100 мс перед следующим запросом
+        time.sleep(0.1)
 
-def configure_sa(instr, rbw=10e3, vbw=10e3, detector="POS", average=False):
+def configure_sa(instr, rbw=10e3, vbw=10e3, detector=None, average=False):
     """
-    Устанавливает основные параметры анализатора спектра (SA) для быстрого измерения.
+    Set up the analyzer for fast single-frequency measurements: 1 MHz span,
+    the given RBW/VBW, single sweeps.
 
-    :param instr: Объект pyvisa.resources.Resource (анализатор спектра)
-    :param rbw: Полоса разрешения (RBW) в Гц, по умолчанию 100 кГц
-    :param vbw: Полоса видеофильтра (VBW) в Гц, по умолчанию 100 кГц
-    :param detector: Тип детектора ("POS" - положительный, "SAMP" - выборка, "NORM" - нормальный)
-    :param average: Включить ли усреднение (True/False)
+    :param instr: open pyvisa resource of the spectrum analyzer
+    :param rbw: resolution bandwidth in Hz (default 10 kHz)
+    :param vbw: video bandwidth in Hz (default 10 kHz)
+    :param detector: detector to select ("POS", "SAMP", "RMS", ...); None leaves it unchanged
+    :param average: turn trace averaging on
     """
-    instr.write(":FREQ:SPAN 1e6")  # Устанавливаем Zero Span (режим одной точки)
-    instr.write(f"BANDwidth:RES {rbw}")  # Полоса разрешения (RBW)
-    instr.write(f"BANDwidth:VID {vbw}")  # Полоса видеофильтра (VBW)
-    instr.write("INITiate:CONTinuous OFF")  # Отключаем автоматическую развертку
+    instr.write(":FREQ:SPAN 1e6")
+    instr.write(f"BANDwidth:RES {rbw}")
+    instr.write(f"BANDwidth:VID {vbw}")
+    if detector is not None:
+        instr.write(f"DET {detector}")
+    if average:
+        instr.write("AVER:STAT ON")
+    instr.write("INITiate:CONTinuous OFF")
 
 def measure_single_frequency(instr, freq_hz):
     """
-    Измеряет мощность на одной частоте.
+    Measure the peak power around one frequency.
+
+    :param instr: open pyvisa resource of the spectrum analyzer
+    :param freq_hz: center frequency in Hz
+    :return: marker 1 power in dBm
     """
-    instr.write(f"FREQ:CENT {freq_hz}")  # Устанавливаем центральную частоту
-    instr.write("INITiate:IMMediate")    # Запускаем измерение
-    time.sleep(0.1)  # Ждем 50 мс перед повторным запросом
-    # Ждем завершения измерения
+    instr.write(f"FREQ:CENT {freq_hz}")
+    instr.write("INITiate:IMMediate")
+    time.sleep(0.1)
+    # Wait for the sweep to finish
     while True:
         status = int(instr.query(":STATus:OPERation:CONDition?").strip())
-        if status == 0:  # Развертка завершена
+        if status == 0:  # sweep finished
             break
-        time.sleep(0.05)  # Ждем 50 мс перед повторным запросом
+        time.sleep(0.05)
         print("SA is not ready, sleep...")
     instr.write('CALC:MARK1:MAX')
-    time.sleep(0.01)  # Ждем 50 мс перед повторным запросом
+    time.sleep(0.01)
     power = instr.query("CALC:MARK1:Y?")
-    #power = instr.query("READ:POW?")  # Читаем измеренное значение мощности
-    return float(power.strip())  # Возвращаем мощность в дБм
+    return float(power.strip())
 
 def measure_average_power(instrument, frequency, num_measurements=8):
     """
-    Функция для измерения мощности на заданной частоте несколько раз и вычисления среднего значения.
-    
-    :param instrument: Объект прибора (например, pyvisa.Resource)
-    :param frequency: Частота, на которой выполняется измерение (в Гц)
-    :param num_measurements: Количество измерений (по умолчанию 8)
-    :return: Среднее арифметическое значение мощности
+    Measure the power at one frequency several times and return the mean.
+
+    :param instrument: open pyvisa resource of the spectrum analyzer
+    :param frequency: frequency in Hz
+    :param num_measurements: number of measurements (default 8)
+    :return: mean power in dBm
     """
     total_power = 0.0
 
     for i in range(num_measurements):
         power = measure_single_frequency(instrument, frequency)
-        print(f"Измерение {i + 1}: {power} дБм")
+        print(f"Measurement {i + 1}: {power} dBm")
         total_power += power
 
-    average_power = total_power / num_measurements
-    return average_power
+    return total_power / num_measurements
 
 def get_SA_device_info(device):
-    """Retrieve SCPI device information including Name, SPAN, RBW, BWB, OUTREF, and ATT.""" 
+    """Retrieve SCPI device information including Name, SPAN, RBW, BWB, OUTREF, and ATT."""
     try:
-        # Open connection to the SCPI device
-
-        # Query device info
         info = {
             "Name": device.query("*IDN?").strip(),
             "SPAN": device.query("FREQ:SPAN?").strip(),
             "RBW": device.query("BAND:RES?").strip(),
             "BWB": device.query("BAND?").strip(),  # BWB might refer to overall bandwidth
-            "OUTREF": device.query(":DISP:TRAC:Y:RLEV?").strip(),  # Corrected command
+            "OUTREF": device.query(":DISP:TRAC:Y:RLEV?").strip(),
             "ATT": device.query("INP:ATT?").strip(),
         }
         return info
@@ -320,18 +329,13 @@ def get_SA_device_info(device):
         return {"Error": str(e)}
 
 def check_and_set_yig_filter(instr, freq):
-    """Проверяет частоту и управляет YIG-фильтром на R&S FSP."""
-    
-    # Запрос текущей частоты
-    freq_hz = freq # Получаем частоту в Гц
-    
-    # Запрос текущего состояния YIG-фильтра
-    yig_state = instr.query(":INP:FILT:YIG?").strip()  # 'ON' или 'OFF'
-    
-    if freq_hz >= 29e9 and yig_state != "OFF":  # Частота ≥ 29 ГГц → фильтр OFF
+    """Turn the YIG preselector off at and above 29 GHz and on below it (R&S FSP/FSV)."""
+    yig_state = instr.query(":INP:FILT:YIG?").strip()  # 'ON' or 'OFF' (some firmware answers 1/0)
+
+    if freq >= 29e9 and yig_state not in ("OFF", "0"):
         instr.write(":INP:FILT:YIG OFF")
         print("YIG Filter turned OFF (Frequency >= 29 GHz)")
 
-    elif freq_hz < 29e9 and yig_state != "ON":  # Частота < 29 ГГц → фильтр ON
+    elif freq < 29e9 and yig_state not in ("ON", "1"):
         instr.write(":INP:FILT:YIG ON")
         print("YIG Filter turned ON (Frequency < 29 GHz)")
